@@ -309,6 +309,7 @@ class Player {
     // highly dynamic data
   public:
     ProtectedObj<PlayerState> state;
+    // PlayerState state;
 
   private:
     // additional state

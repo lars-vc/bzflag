@@ -1245,20 +1245,20 @@ bool            LocalPlayer::fireShot()
         return false;
 
     // prepare shot
-    LocalPlayer* myTank = LocalPlayer::getMyTank();
-    const float tmp[3] = { myTank->getPosition()[0].val(), myTank->getPosition()[1].val(), myTank->getPosition()[2].val()};
-    printf("SHOTTESTTSETT fired at %f %f %f\n", tmp[0], tmp[1], tmp[2]);
-    printf("SHOTTE fired at %f %f %f\n", state.pos[0].val(), state.pos[1].val(), state.pos[2].val());
+    // LocalPlayer* myTank = LocalPlayer::getMyTank();
+    // const float tmp[3] = { myTank->getPosition()[0].val(), myTank->getPosition()[1].val(), myTank->getPosition()[2].val()};
+    // printf("SHOTTESTTSETT fired at %f %f %f\n", tmp[0], tmp[1], tmp[2]);
+    // printf("SHOTTE fired at %f %f %f\n", state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val());
     FiringInfo firingInfo(*this, i + getSalt());
     // FIXME team coloring of shot is never used; it was meant to be used
     // for rabbit mode to correctly calculate team kills when rabbit changes
     firingInfo.shot.team = getTeam();
-    printf("SHOTTTTTTTTT\n");
+    // printf("SHOTTTTTTTTT\n");
     if (firingInfo.flagType == Flags::ShockWave)
     {
         // move shot origin under tank and make it stationary
         const float tmp[3] = { getPosition()[0].val(), getPosition()[1].val(), getPosition()[2].val()};
-        printf("ShockWave fired at %f %f %f\n", tmp[0], tmp[1], tmp[2]);
+        // printf("ShockWave fired at %f %f %f\n", tmp[0], tmp[1], tmp[2]);
         const float* pos = tmp;
         firingInfo.shot.pos[0] = pos[0];
         firingInfo.shot.pos[1] = pos[1];
@@ -1289,7 +1289,7 @@ bool            LocalPlayer::fireShot()
     // make shot and put it in the table
     shots[i] = new LocalShotPath(firingInfo);
     const float* t = shots[i]->getPosition();
-    printf("SHOT fired at %f %f %f\n", t[0], t[1], t[2]);
+    // printf("SHOT fired at %f %f %f\n", t[0], t[1], t[2]);
 
     // Insert timestamp, useful for dead reckoning jitter fixing
     // TODO should maybe use getTick() instead? must double check

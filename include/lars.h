@@ -268,7 +268,7 @@
 // };
 
 template <typename T> struct DummyTail {
-    T val;
+    T *val;
 };
 
 template <typename T> struct Dummy {
@@ -301,18 +301,23 @@ class Overseer {
         }
         return next->tail;
     }
-    template <typename T>
-    Dummy<T> *create_path_rec(T val, int depth, int max_depth) {
+    template <typename T> Dummy<T> *create_path_rec(int depth, int max_depth) {
+        int c = totalcounter;
+        totalcounter++;
         Dummy<T> *d = new Dummy<T>();
         if (depth < max_depth) {
-            d->d1 = create_path_rec(val, depth + 1, max_depth);
-            d->d2 = create_path_rec(val, depth + 1, max_depth);
-            d->d3 = create_path_rec(val, depth + 1, max_depth);
+            d->d1 = create_path_rec<T>(depth + 1, max_depth);
+            d->d2 = create_path_rec<T>(depth + 1, max_depth);
+            d->d3 = create_path_rec<T>(depth + 1, max_depth);
         }
-        d->tail = new DummyTail<T>();
+        // d->tail = new DummyTail<T>();
+        d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
+        d->tail->val = (T *)malloc(sizeof(T));
+        // d->tail->val = nullptr;
         // TODO: LARS
         // d->id = catalog.size();
-        d->id = rand();
+        d->id = c;
+        // d->id = rand();
         counter[d->id] = 0;
         catalog[d->id] = -1;
         // d->tail->val = rand();
@@ -326,6 +331,7 @@ class Overseer {
             free_path_rec(d->d3);
         }
         catalog.erase(d->id);
+        free(d->tail->val);
         free(d->tail);
         // TODO: fix warning
         delete d;
@@ -344,7 +350,7 @@ class Overseer {
                                                   due_for_path_update.end(), 8),
                                       due_for_path_update.end());
             // due_for_path_update.erase(due_for_path_update.begin() + index);
-            printf("Updated path\n");
+            // printf("Updated path\n");
             // for (const auto &elem : catalog) { std::cout << elem.first << ","
             // << elem.second << " ";
             // }
@@ -359,19 +365,39 @@ class Overseer {
     // update path on next resolve
     std::vector<int> due_for_path_update;
     int paths_created = 0;
+    int totalcounter = 0;
 
   public:
     template <typename T> Dummy<T> *create_path(T val) {
         // int len = rand();
         int len = 10;
-        Dummy<T> *d = create_path_rec(val, 0, len);
-        update_path_dummy(d, val);
+        Dummy<T> *d = create_path_rec<T>(0, len);
+        T *valptr = (T *)malloc(sizeof(T));
+        memcpy(valptr, &val, sizeof(T));
+        update_path_dummy(d, valptr);
         paths_created++;
-        printf("Created path: %d\n", paths_created);
+        printf("Created path: id=%d name=%s count=%d\n", d->id,
+               typeid(val).name(), paths_created);
         return d;
     }
 
-    template <typename T> void free_path(Dummy<T> *d) { free_path_rec(d); }
+    template <typename T> Dummy<T> *create_path_obj() {
+        // int len = rand();
+        int len = 1;
+        Dummy<T> *d = create_path_rec<T>(0, len);
+        // T *valptr = (T *)malloc(sizeof(T));
+        T *valptr = new T();
+        update_path_dummy(d, valptr);
+        paths_created++;
+        printf("Created path: id=%d name=%s count=%d\n", d->id,
+               typeid(*valptr).name(), paths_created);
+        return d;
+    }
+
+    template <typename T> void free_path(Dummy<T> *d) {
+        printf("Freed:        id=%d\n", d->id);
+        free_path_rec(d);
+    }
 
     template <typename T> DummyTail<T> *resolve_dummy(Dummy<T> *d) {
         // check if dummy is due for chain update
@@ -396,16 +422,16 @@ class Overseer {
         return next->tail;
     }
 
-    template <typename T> T &resolve_dummy_val(Dummy<T> *d) {
+    template <typename T> T *resolve_dummy_val(Dummy<T> *d) {
         return resolve_dummy(d)->val;
     }
 
     template <typename T> void update_path_dummy(Dummy<T> *d) {
-        T val = resolve_dummy_val(d);
+        T *val = resolve_dummy_val(d);
         update_path_dummy(d, val);
     }
 
-    template <typename T> void update_path_dummy(Dummy<T> *d, T val) {
+    template <typename T> void update_path_dummy(Dummy<T> *d, T *val) {
         Dummy<T> *curr = d;
         while (curr->d1 != nullptr) {
             int pick = rand() % 3;
@@ -423,7 +449,8 @@ class Overseer {
             }
         }
         catalog[curr->id] = 4;
-        memcpy(&curr->tail->val, &val, sizeof(T));
+        // printf("memcpy\n");
+        memcpy(curr->tail->val, val, sizeof(T));
         // curr->tail->val = val;
     }
 
@@ -432,10 +459,10 @@ class Overseer {
     template <typename T> void change_value_dummy(Dummy<T> *d, T val) {
         // TODO: When to update?
         counter[d->id]++;
-        if (counter[d->id] > 60) {
+        if (counter[d->id] > 6000) {
             due_for_path_update.push_back(d->id);
         }
-        resolve_dummy(d)->val = val;
+        *resolve_dummy(d)->val = val;
     }
 };
 
@@ -445,7 +472,7 @@ inline Overseer *overseer = new Overseer();
 template <typename T> class Protected {
   private:
     Dummy<T> *path;
-    T deobfuscate() const { return overseer->resolve_dummy_val(path); }
+    T deobfuscate() const { return *overseer->resolve_dummy_val(path); }
     void obfuscate(T val) { overseer->change_value_dummy(path, val); }
 
   public:
@@ -453,9 +480,9 @@ template <typename T> class Protected {
     Protected(T val) { path = overseer->create_path(val); }
     Protected(Protected const &p) { path = overseer->create_path(p.val()); }
     // TODO: LARS
-    Protected(Protected &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
+    // Protected(Protected &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
     ~Protected() {
-        printf("freed\n");
+        // printf("freed\n");
         overseer->free_path(path);
     }
 
@@ -466,10 +493,11 @@ template <typename T> class Protected {
     Protected &operator=(Protected &val) {
         return operator=(val.deobfuscate());
     }
-    Protected &operator=(Protected &&val) {
-        printf("TODO MOVE assignment\n");
-        return nullptr;
-    }
+    // TODO:
+    // Protected &operator=(Protected &&val) {
+    //     printf("TODO MOVE assignment\n");
+    //     return nullptr;
+    // }
     Protected operator+(Protected add) {
         T val = deobfuscate();
         T valadd = add.deobfuscate();
@@ -500,36 +528,39 @@ template <typename T> class Protected {
 template <typename T> class ProtectedObj {
   private:
     Dummy<T> *path;
-    T &deobfuscate() const { return overseer->resolve_dummy_val(path); }
+    T &deobfuscate() const { return *overseer->resolve_dummy_val(path); }
     void obfuscate(T val) { overseer->change_value_dummy(path, val); }
 
   public:
-    ProtectedObj() { path = overseer->create_path(static_cast<T>(T())); }
-    ProtectedObj(T val) { path = overseer->create_path(val); }
+    ProtectedObj() { path = overseer->create_path_obj<T>(); }
+    // ProtectedObj(T val) { path = overseer->create_path(val); }
     ProtectedObj(ProtectedObj const &p) {
         path = overseer->create_path(p.val());
     }
-    ProtectedObj(ProtectedObj &&p) {
-        printf("move construct\n");
-        path = std::move(p.path);
-    }
+    // TODO:
+    // ProtectedObj(ProtectedObj &&p) {
+    //     printf("move construct\n");
+    //     path = std::move(p.path);
+    // }
     ~ProtectedObj() {
-        printf("freedobj\n");
+        // printf("freedobj\n");
         overseer->free_path(path);
     }
 
     ProtectedObj &operator=(T val) {
+        // TODO: This doesn't not work for objects
         obfuscate(val);
         return *this;
     }
     ProtectedObj &operator=(ProtectedObj &val) {
         return operator=(val.deobfuscate());
     }
-    ProtectedObj &operator=(ProtectedObj &&val) {
-        path = std::move(val.path);
-        printf("TODO MOVE assignment\n");
-        return *this;
-    }
+    // TODO:
+    // ProtectedObj &operator=(ProtectedObj &&val) {
+    //     path = std::move(val.path);
+    //     printf("TODO MOVE assignment\n");
+    //     return *this;
+    // }
     T &dot() {
         // overseer->update_path_dummy(path);
         return deobfuscate();
@@ -538,6 +569,9 @@ template <typename T> class ProtectedObj {
         // overseer->update_path_dummy(path);
         return deobfuscate();
     }
+    // TODO: test this
+    T &operator->() { return dot(); }
+
     // ProtectedObj operator+(Protected add) {
     //     T val = deobfuscate();
     //     T valadd = add.deobfuscate();
@@ -566,7 +600,7 @@ template <typename T> class ProtectedObj {
 };
 
 struct TEST {
-    int val = 0;
+    Protected<int> val = 0;
 } typedef TEST;
 
 // protectfunc inline int get_val_lars(ProtectedInt &val) { return val.val(); }

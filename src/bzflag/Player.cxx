@@ -107,7 +107,7 @@ Player::Player(const PlayerId& _id, TeamColor _team,
     {
         // make scene nodes
 
-        const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
+        const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
         tankNode = new TankSceneNode(tmp, forward);
         tankIDLNode = new TankIDLSceneNode(tankNode);
         changeTeam(team);
@@ -235,10 +235,10 @@ void Player::getMuzzle(float* m) const
         front = front + (dimensionsRate[0] * 0.1f);
     front = front + 0.1f;
 
-    m[0] = state.pos[0].val() + (front * forward[0]);
-    m[1] = state.pos[1].val() + (front * forward[1]);
+    m[0] = state.dot().pos[0].val() + (front * forward[0]);
+    m[1] = state.dot().pos[1].val() + (front * forward[1]);
     const float height = BZDB.eval(StateDatabase::BZDB_MUZZLEHEIGHT);
-    m[2] = state.pos[2].val() + (height * dimensionsScale[2]);
+    m[2] = state.dot().pos[2].val() + (height * dimensionsScale[2]);
     return;
 }
 
@@ -262,26 +262,26 @@ void Player::move(const float* _pos, float _azimuth, const char* str)
     // printf("x: %f\n", _pos[0]);
     // printf("y: %f\n", _pos[1]);
     // printf("z: %f\n", _pos[2]);
-    state.pos[0] = _pos[0];
-    state.pos[1] = _pos[1];
-    state.pos[2] = _pos[2];
-    state.azimuth = _azimuth;
+    state.dot().pos[0] = _pos[0];
+    state.dot().pos[1] = _pos[1];
+    state.dot().pos[2] = _pos[2];
+    state.dot().azimuth = _azimuth;
 
     // limit angle
-    if (state.azimuth < 0.0f)
-        state.azimuth = (float)((2.0 * M_PI) - fmodf(-state.azimuth, (float)(2.0 * M_PI)));
-    else if (state.azimuth >= (2.0f * M_PI))
-        state.azimuth = fmodf(state.azimuth, (float)(2.0 * M_PI));
+    if (state.dot().azimuth < 0.0f)
+        state.dot().azimuth = (float)((2.0 * M_PI) - fmodf(-state.dot().azimuth, (float)(2.0 * M_PI)));
+    else if (state.dot().azimuth >= (2.0f * M_PI))
+        state.dot().azimuth = fmodf(state.dot().azimuth, (float)(2.0 * M_PI));
 
     // update forward vector (always in horizontal plane)
-    forward[0] = cosf(state.azimuth);
-    forward[1] = sinf(state.azimuth);
+    forward[0] = cosf(state.dot().azimuth);
+    forward[1] = sinf(state.dot().azimuth);
     forward[2] = 0.0f;
 
     // compute teleporter proximity
     if (World::getWorld())
     {
-        const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
+        const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
         teleporterProximity =
             World::getWorld()->getProximity(tmp, BZDBCache::tankRadius);
     }
@@ -289,27 +289,27 @@ void Player::move(const float* _pos, float _azimuth, const char* str)
 
 void Player::setVelocity(const float* _velocity)
 {
-    state.velocity[0] = _velocity[0];
-    state.velocity[1] = _velocity[1];
-    state.velocity[2] = _velocity[2];
+    state.dot().velocity[0] = _velocity[0];
+    state.dot().velocity[1] = _velocity[1];
+    state.dot().velocity[2] = _velocity[2];
 }
 
 
 void Player::setAngularVelocity(float _angVel)
 {
-    state.angVel = _angVel;
+    state.dot().angVel = _angVel;
 }
 
 
 void Player::setPhysicsDriver(int driver)
 {
-    state.phydrv = driver;
+    state.dot().phydrv = driver;
 
     const PhysicsDriver* phydrv = PHYDRVMGR.getDriver(driver);
     if (phydrv != NULL)
-        state.status |= PlayerState::OnDriver;
+        state.dot().status |= PlayerState::OnDriver;
     else
-        state.status &= ~PlayerState::OnDriver;
+        state.dot().status &= ~PlayerState::OnDriver;
 
     return;
 }
@@ -317,7 +317,7 @@ void Player::setPhysicsDriver(int driver)
 
 void Player::setRelativeMotion()
 {
-    bool falling = (state.status & short(PlayerState::Falling)) != 0;
+    bool falling = (state.dot().status & short(PlayerState::Falling)) != 0;
     if (falling && (getFlag() != Flags::Wings))
     {
         // no adjustments while falling
@@ -334,26 +334,26 @@ void Player::setRelativeMotion()
 
 void Player::setUserSpeed(float speed)
 {
-    state.userSpeed = speed;
+    state.dot().userSpeed = speed;
     return;
 }
 
 
 void Player::setUserAngVel(float angVel)
 {
-    state.userAngVel = angVel;
+    state.dot().userAngVel = angVel;
     return;
 }
 
 
 void Player::calcRelativeMotion(float vel[2], float& speed, float& angVel)
 {
-    vel[0] = state.velocity[0];
-    vel[1] = state.velocity[1];
+    vel[0] = state.dot().velocity[0];
+    vel[1] = state.dot().velocity[1];
 
-    angVel = state.angVel;
+    angVel = state.dot().angVel;
 
-    const PhysicsDriver* phydrv = PHYDRVMGR.getDriver(state.phydrv);
+    const PhysicsDriver* phydrv = PHYDRVMGR.getDriver(state.dot().phydrv);
     if (phydrv != NULL)
     {
         const float* v = phydrv->getLinearVel();
@@ -367,18 +367,18 @@ void Player::calcRelativeMotion(float vel[2], float& speed, float& angVel)
         // adjust for driver angular velocity
         if (av != 0.0f)
         {
-            const float dx = state.pos[0].val() - ap[0];
-            const float dy = state.pos[1].val() - ap[1];
+            const float dx = state.dot().pos[0].val() - ap[0];
+            const float dy = state.dot().pos[1].val() - ap[1];
             vel[0] += av * dy;
             vel[1] -= av * dx;
-            angVel = state.angVel - av;
+            angVel = state.dot().angVel - av;
         }
     }
 
     // speed relative to the tank's direction
     // (could use forward[] instead of re-doing the trig, but this is
     //  used in the setDeadReckoning(), when forward[] is not yet set)
-    speed = (vel[0] * cosf(state.azimuth)) + (vel[1] * sinf(state.azimuth));
+    speed = (vel[0] * cosf(state.dot().azimuth)) + (vel[1] * sinf(state.dot().azimuth));
 
     return;
 }
@@ -395,7 +395,7 @@ void Player::changeTeam(TeamColor _team)
 
 void Player::setStatus(short _status)
 {
-    state.status = _status;
+    state.dot().status = _status;
 }
 
 
@@ -453,11 +453,11 @@ void Player::updateJumpJets(float dt)
     else
         jumpVel = BZDB.eval(StateDatabase::BZDB_JUMPVELOCITY);
     const float jetTime = 0.5f * (jumpVel / -BZDBCache::gravity);
-    state.jumpJetsScale -= (dt / jetTime);
-    if (state.jumpJetsScale < 0.0f)
+    state.dot().jumpJetsScale -= (dt / jetTime);
+    if (state.dot().jumpJetsScale < 0.0f)
     {
-        state.jumpJetsScale = 0.0f;
-        state.status &= ~PlayerState::JumpJets;
+        state.dot().jumpJetsScale = 0.0f;
+        state.dot().status &= ~PlayerState::JumpJets;
     }
     return;
 }
@@ -474,7 +474,7 @@ void Player::updateTrackMarks()
         {
             bool drawMark = true;
             float markPos[3];
-            markPos[2] = state.pos[2].val();
+            markPos[2] = state.dot().pos[2].val();
             // FIXME - again, this should be pulled for TankGeometryMgr
             const float fullLength = 6.0f;
             const float treadHeight = 1.2f;
@@ -484,14 +484,14 @@ void Player::updateTrackMarks()
             if (relativeSpeed > +minSpeed)
             {
                 // draw the mark at the back of the treads
-                markPos[0] = state.pos[0].val() - (forward[0] * dist);
-                markPos[1] = state.pos[1].val() - (forward[1] * dist);
+                markPos[0] = state.dot().pos[0].val() - (forward[0] * dist);
+                markPos[1] = state.dot().pos[1].val() - (forward[1] * dist);
             }
             else if (relativeSpeed < -minSpeed)
             {
                 // draw the mark at the front of the treads
-                markPos[0] = state.pos[0].val() + (forward[0] * dist);
-                markPos[1] = state.pos[1].val() + (forward[1] * dist);
+                markPos[0] = state.dot().pos[0].val() + (forward[0] * dist);
+                markPos[1] = state.dot().pos[1].val() + (forward[1] * dist);
             }
             else
                 drawMark = false;
@@ -499,7 +499,7 @@ void Player::updateTrackMarks()
             if (drawMark)
             {
                 TrackMarks::addMark(markPos, dimensionsScale[1],
-                                    state.azimuth, state.phydrv);
+                                    state.dot().azimuth, state.dot().phydrv);
                 lastTrackDraw = TimeKeeper::getTick();
             }
         }
@@ -649,7 +649,7 @@ void Player::updateTranslucency(float dt)
     }
     else
     {
-        const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
+        const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
         teleporterProximity =
             World::getWorld()->getProximity(tmp, BZDBCache::tankRadius);
         teleAlpha = (1.0f - (0.75f * teleporterProximity));
@@ -671,10 +671,10 @@ void Player::updateTreads(float dt)
     float speedFactor;
     float angularFactor;
 
-    if ((state.status & PlayerState::UserInputs) != 0)
+    if ((state.dot().status & PlayerState::UserInputs) != 0)
     {
-        speedFactor = state.userSpeed;
-        angularFactor = state.userAngVel;
+        speedFactor = state.dot().userSpeed;
+        angularFactor = state.dot().userAngVel;
     }
     else
     {
@@ -855,25 +855,25 @@ void Player::setVisualTeam (TeamColor visualTeam)
 
 void Player::fireJumpJets()
 {
-    state.jumpJetsScale = 1.0f;
-    state.status |= PlayerState::JumpJets;
+    state.dot().jumpJetsScale = 1.0f;
+    state.dot().status |= PlayerState::JumpJets;
     return;
 }
 
 
 void Player::clearRemoteSounds()
 {
-    state.sounds = PlayerState::NoSounds;
-    state.status &= ~PlayerState::PlaySound;
+    state.dot().sounds = PlayerState::NoSounds;
+    state.dot().status &= ~PlayerState::PlaySound;
     return;
 }
 
 
 void Player::addRemoteSound(int sound)
 {
-    state.sounds |= sound;
-    if (state.sounds != PlayerState::NoSounds)
-        state.status |= PlayerState::PlaySound;
+    state.dot().sounds |= sound;
+    if (state.dot().sounds != PlayerState::NoSounds)
+        state.dot().status |= PlayerState::PlaySound;
     return;
 }
 
@@ -890,7 +890,7 @@ void Player::addToScene(SceneDatabase* scene, TeamColor effectiveTeam,
     }
 
     // place the tank
-    const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
+    const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
     tankNode->move(tmp, forward);
 
     // only use dimensions if we aren't at steady state.
@@ -944,7 +944,7 @@ void Player::addToScene(SceneDatabase* scene, TeamColor effectiveTeam,
     if (isAlive())
     {
         tankNode->setExplodeFraction(0.0f);
-        tankNode->setJumpJets(state.jumpJetsScale);
+        tankNode->setJumpJets(state.dot().jumpJetsScale);
         scene->addDynamicNode(tankNode);
 
         if (isCrossingWall())
@@ -981,7 +981,7 @@ void Player::addToScene(SceneDatabase* scene, TeamColor effectiveTeam,
             tankNode->setClipPlane(groundPlane);
         } // isCrossingWall()
     }   // isAlive()
-    else if (isExploding() && (state.pos[2].val() > ZERO_TOLERANCE))
+    else if (isExploding() && (state.dot().pos[2].val() > ZERO_TOLERANCE))
     {
         float t = float((TimeKeeper::getTick() - explodeTime) /
                         BZDB.eval(StateDatabase::BZDB_EXPLODETIME));
@@ -1105,7 +1105,7 @@ const void* Player::unpack(const void* buf, uint16_t code)
 
     buf = nboUnpackFloat(buf, timestamp);
     buf = nboUnpackUByte(buf, ident);
-    buf = state.unpack(buf, code);
+    buf = state.dot().unpack(buf, code);
 
     setDeadReckoning(timestamp);
     setRelativeMotion();
@@ -1238,19 +1238,19 @@ bool Player::isDeadReckoningWrong() const
     const uint16_t checkStates =
         (PlayerState::Alive | PlayerState::Paused | PlayerState::Falling);
     // always send a new packet when some kinds of status change
-    if ((state.status & checkStates) != (inputStatus & checkStates))
+    if ((state.dot().status & checkStates) != (inputStatus & checkStates))
         return true;
 
     // never send a packet when dead
-    if ((state.status & PlayerState::Alive) == 0)
+    if ((state.dot().status & PlayerState::Alive) == 0)
         return false;
 
     //  send a packet if we've made some noise
-    if (state.sounds != PlayerState::NoSounds)
+    if (state.dot().sounds != PlayerState::NoSounds)
         return true;
 
     //  send a packet if we've crossed a physics driver boundary
-    if (state.phydrv != inputPhyDrv)
+    if (state.dot().phydrv != inputPhyDrv)
         return true;
 
     // time since setdeadreckoning
@@ -1281,7 +1281,7 @@ bool Player::isDeadReckoningWrong() const
 
     // see if position and azimuth are close enough
     float positionTolerance = BZDB.eval(StateDatabase::BZDB_POSITIONTOLERANCE);
-    const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
+    const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
     if ((fabsf(tmp[0] - predictedPos[0]) > positionTolerance) ||
             (fabsf(tmp[1] - predictedPos[1]) > positionTolerance) ||
             (fabsf(tmp[2] - predictedPos[2]) > positionTolerance))
@@ -1308,10 +1308,10 @@ bool Player::isDeadReckoningWrong() const
     }
 
     float angleTolerance = BZDB.eval(StateDatabase::BZDB_ANGLETOLERANCE);
-    if (fabsf(state.azimuth - predictedAzimuth) > angleTolerance)
+    if (fabsf(state.dot().azimuth - predictedAzimuth) > angleTolerance)
     {
         logDebugMessage(4,"state.azimuth = %f, predictedAzimuth = %f\n",
-                        state.azimuth, predictedAzimuth);
+                        state.dot().azimuth, predictedAzimuth);
         return true;
     }
 
@@ -1352,7 +1352,7 @@ void Player::doDeadReckoning()
     }
 
     // setup remote players' landing sounds and graphics, and jumping sounds
-    const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
+    const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
     if (isAlive())
     {
         // the importance level of the remote sounds
@@ -1369,7 +1369,7 @@ void Player::doDeadReckoning()
             setLandingSpeed(oldZSpeed);
 
             // make it "land"
-            EFFECTS.addLandEffect(getColor(),tmp,state.azimuth);
+            EFFECTS.addLandEffect(getColor(),tmp,state.dot().azimuth);
 
             // setup the sound
             if (BZDB.isTrue("remoteSounds"))
@@ -1385,23 +1385,23 @@ void Player::doDeadReckoning()
         }
 
         // play jumping type sounds, and then clear them
-        if (state.sounds != PlayerState::NoSounds)
+        if (state.dot().sounds != PlayerState::NoSounds)
         {
             if (BZDB.isTrue("remoteSounds"))
             {
-                if ((state.sounds & PlayerState::JumpSound) != 0)
+                if ((state.dot().sounds & PlayerState::JumpSound) != 0)
                     playSound(SFX_JUMP, tmp, soundImportance, localSound);
-                if ((state.sounds & PlayerState::WingsSound) != 0)
+                if ((state.dot().sounds & PlayerState::WingsSound) != 0)
                     playSound(SFX_FLAP, tmp, soundImportance, localSound);
-                if ((state.sounds & PlayerState::BounceSound) != 0)
+                if ((state.dot().sounds & PlayerState::BounceSound) != 0)
                     playSound(SFX_BOUNCE, tmp, soundImportance, localSound);
             }
-            state.sounds = PlayerState::NoSounds;
+            state.dot().sounds = PlayerState::NoSounds;
         }
     }
 
     // copy some old state
-    oldZSpeed = state.velocity[2];
+    oldZSpeed = state.dot().velocity[2];
     oldStatus = inputStatus;
 
     move(predictedPos, predictedAzimuth);
@@ -1422,9 +1422,9 @@ void Player::setDeadReckoning(float timestamp)
     inputTimestamp = timestamp;
     if (dt > 0.0f && dt < MaxUpdateTime * 1.5f)
     {
-        apparentVelocity[0] = (inputPos[0] - state.pos[0].val()) / dt;
-        apparentVelocity[1] = (inputPos[1] - state.pos[1].val()) / dt;
-        apparentVelocity[2] = (inputPos[2] - state.pos[2].val()) / dt;
+        apparentVelocity[0] = (inputPos[0] - state.dot().pos[0].val()) / dt;
+        apparentVelocity[1] = (inputPos[1] - state.dot().pos[1].val()) / dt;
+        apparentVelocity[2] = (inputPos[2] - state.dot().pos[2].val()) / dt;
     }
 
     // set the current state
@@ -1439,14 +1439,14 @@ void Player::setDeadReckoning()
     inputTime = TimeKeeper::getTick();
 
     // copy stuff for dead reckoning
-    inputStatus = state.status;
-    inputAzimuth = state.azimuth;
-    inputAngVel = state.angVel;
+    inputStatus = state.dot().status;
+    inputAzimuth = state.dot().azimuth;
+    inputAngVel = state.dot().angVel;
 
     const float tmp[3] = { getPosition()[0].val(), getPosition()[1].val(), getPosition()[2].val()};
     memcpy(inputPos, tmp, sizeof(float[3]));
-    memcpy(inputVel, state.velocity, sizeof(float[3]));
-    inputPhyDrv = state.phydrv;
+    memcpy(inputVel, state.dot().velocity, sizeof(float[3]));
+    inputPhyDrv = state.dot().phydrv;
 
     //
     // pre-calculate some stuff for dead reckoning

@@ -18,32 +18,37 @@
 #include <stdio.h>
 
 // local implementation headers
-#include "common.h"
 #include "Pack.h"
 #include "Protocol.h"
 #include "StateDatabase.h"
+#include "common.h"
 
 // the full scale of a int16_t  (less 1.0 for safety)
-const float smallScale     = 32766.0f;
+const float smallScale = 32766.0f;
 
 // 2 cm resolution  (range: +/- 655.32 meters)
-const float smallMaxDist   = 0.02f * smallScale;
+const float smallMaxDist = 0.02f * smallScale;
 
 // 1 cm/sec resolution  (range: +/- 327.66 meters/sec)
-const float smallMaxVel    = 0.01f * smallScale;
+const float smallMaxVel = 0.01f * smallScale;
 
 // 0.001 radians/sec resolution  (range: +/- 32.766 rads/sec)
 const float smallMaxAngVel = 0.001f * smallScale;
 
-
 PlayerState::PlayerState()
-    : order(0), status(DeadStatus), azimuth(0.0f), angVel(0.0f)
-{
+    : order(0), status(DeadStatus), azimuth(0.0f), angVel(0.0f) {
     printf("TEST\n");
     // pos[0] = SplitFloat(0.0f);
     // pos[1] = SplitFloat(0.0f);
     // pos[2] = SplitFloat(0.0f);
     pos[0] = pos[1] = pos[2] = 0.0f;
+    ProtectedObj<TEST> p = ProtectedObj<TEST>();
+    p.dot().val = 1;
+    printf("dot: %d\n", p.dot().val);
+    printf("dot: %d\n", p.dot().val);
+    printf("dot: %d\n", p.dot().val);
+    printf("dot: %d\n", p.dot().val);
+    printf("dot: %d\n", p.dot().val);
     velocity[0] = velocity[1] = velocity[2] = 0.0f;
     phydrv = -1;
     userSpeed = 0.0f;
@@ -52,9 +57,7 @@ PlayerState::PlayerState()
     sounds = NoSounds;
 }
 
-
-static float clampedValue(float input, float max)
-{
+static float clampedValue(float input, float max) {
     if (input > max)
         return max;
     else if (input < -max)
@@ -63,53 +66,47 @@ static float clampedValue(float input, float max)
         return input;
 }
 
-
-void*   PlayerState::pack(void* buf, uint16_t& code)
-{
+void *PlayerState::pack(void *buf, uint16_t &code) {
     order++;
 
     buf = nboPackInt(buf, int32_t(order));
     buf = nboPackShort(buf, int16_t(status));
 
     if ((BZDB.eval(StateDatabase::BZDB_NOSMALLPACKETS) > 0.0f) ||
-            (fabsf (pos[0]) >= smallMaxDist)      ||
-            (fabsf (pos[1]) >= smallMaxDist)      ||
-            (fabsf (pos[2]) >= smallMaxDist)      ||
-            (fabsf (velocity[0]) >= smallMaxVel)  ||
-            (fabsf (velocity[1]) >= smallMaxVel)  ||
-            (fabsf (velocity[2]) >= smallMaxVel)  ||
-            (fabsf (angVel) >= smallMaxAngVel))
-    {
+        (fabsf(pos[0].val()) >= smallMaxDist) ||
+        (fabsf(pos[1].val()) >= smallMaxDist) ||
+        (fabsf(pos[2].val()) >= smallMaxDist) ||
+        (fabsf(velocity[0]) >= smallMaxVel) ||
+        (fabsf(velocity[1]) >= smallMaxVel) ||
+        (fabsf(velocity[2]) >= smallMaxVel) ||
+        (fabsf(angVel) >= smallMaxAngVel)) {
 
         code = MsgPlayerUpdate;
 
-        const float tmp[3] = { pos[0].val(), pos[1].val(), pos[2].val()};
+        const float tmp[3] = {pos[0].val(), pos[1].val(), pos[2].val()};
         buf = nboPackVector(buf, tmp);
         buf = nboPackVector(buf, velocity);
         buf = nboPackFloat(buf, azimuth);
         buf = nboPackFloat(buf, angVel);
-    }
-    else
-    {
+    } else {
 
         code = MsgPlayerUpdateSmall;
 
         int16_t posShort[3], velShort[3], aziShort, angVelShort;
 
-        for (int i=0; i<3; i++)
-        {
-            posShort[i] = (int16_t) ((pos[i].val() * smallScale) / smallMaxDist);
-            velShort[i] = (int16_t) ((velocity[i] * smallScale) / smallMaxVel);
+        for (int i = 0; i < 3; i++) {
+            posShort[i] = (int16_t)((pos[i].val() * smallScale) / smallMaxDist);
+            velShort[i] = (int16_t)((velocity[i] * smallScale) / smallMaxVel);
         }
 
         // put the angle between -M_PI and +M_PI
-        float angle = fmodf (azimuth, (float)M_PI * 2.0f);
+        float angle = fmodf(azimuth, (float)M_PI * 2.0f);
         if (angle > M_PI)
             angle -= (float)(M_PI * 2.0);
         else if (angle < -M_PI)
             angle += (float)(M_PI * 2.0);
-        aziShort = (int16_t) ((angle * smallScale) / M_PI);
-        angVelShort = (int16_t) ((angVel * smallScale) / smallMaxAngVel);
+        aziShort = (int16_t)((angle * smallScale) / M_PI);
+        angVelShort = (int16_t)((angVel * smallScale) / smallMaxAngVel);
 
         buf = nboPackShort(buf, posShort[0]);
         buf = nboPackShort(buf, posShort[1]);
@@ -121,25 +118,23 @@ void*   PlayerState::pack(void* buf, uint16_t& code)
         buf = nboPackShort(buf, angVelShort);
     }
 
-    if ((status & JumpJets) != 0)
-    {
+    if ((status & JumpJets) != 0) {
         float tmp = clampedValue(jumpJetsScale, 1.0f);
-        buf = nboPackShort(buf, (int16_t) (tmp * smallScale));
+        buf = nboPackShort(buf, (int16_t)(tmp * smallScale));
     }
 
     if ((status & OnDriver) != 0)
         buf = nboPackInt(buf, phydrv);
 
-    if ((status & UserInputs) != 0)
-    {
+    if ((status & UserInputs) != 0) {
         float tmp;
         // pack userSpeed
         tmp = clampedValue(userSpeed, smallMaxVel);
-        int16_t speed = (int16_t) ((tmp * smallScale) / smallMaxVel);
+        int16_t speed = (int16_t)((tmp * smallScale) / smallMaxVel);
         buf = nboPackShort(buf, speed);
         // pack userAngVel
         tmp = clampedValue(userAngVel, smallMaxAngVel);
-        int16_t angvel = (int16_t) ((tmp * smallScale) / smallMaxAngVel);
+        int16_t angvel = (int16_t)((tmp * smallScale) / smallMaxAngVel);
         buf = nboPackShort(buf, angvel);
     }
 
@@ -149,9 +144,7 @@ void*   PlayerState::pack(void* buf, uint16_t& code)
     return buf;
 }
 
-
-const void* PlayerState::unpack(const void* buf, uint16_t code)
-{
+const void *PlayerState::unpack(const void *buf, uint16_t code) {
     int32_t inOrder;
     int16_t inStatus;
     buf = nboUnpackInt(buf, inOrder);
@@ -159,25 +152,16 @@ const void* PlayerState::unpack(const void* buf, uint16_t code)
     order = int(inOrder);
     status = short(inStatus);
 
-    if (code == MsgPlayerUpdate)
-    {
-        printf("MsgPlayerUpdate\n");
+    if (code == MsgPlayerUpdate) {
         float tmp[3];
         buf = nboUnpackVector(buf, tmp);
-        printf("%f\n", tmp[0]);
-        printf("%f\n", tmp[1]);
-        printf("%f\n", tmp[2]);
-        for (int i=0; i<3; i++)
-        {
+        for (int i = 0; i < 3; i++) {
             pos[i] = tmp[i];
         }
         buf = nboUnpackVector(buf, velocity);
         buf = nboUnpackFloat(buf, azimuth);
         buf = nboUnpackFloat(buf, angVel);
-    }
-    else
-    {
-        printf("NOT MsgPlayerUpdate\n");
+    } else {
         int16_t posShort[3], velShort[3], aziShort, angVelShort;
 
         buf = nboUnpackShort(buf, posShort[0]);
@@ -189,11 +173,7 @@ const void* PlayerState::unpack(const void* buf, uint16_t code)
         buf = nboUnpackShort(buf, aziShort);
         buf = nboUnpackShort(buf, angVelShort);
 
-        printf("%h\n", posShort[0]);
-        printf("%h\n", posShort[1]);
-        printf("%h\n", posShort[2]);
-        for (int i=0; i<3; i++)
-        {
+        for (int i = 0; i < 3; i++) {
             pos[i] = ((float)posShort[i] * smallMaxDist) / smallScale;
             velocity[i] = ((float)velShort[i] * smallMaxVel) / smallScale;
         }
@@ -201,34 +181,27 @@ const void* PlayerState::unpack(const void* buf, uint16_t code)
         angVel = ((float)angVelShort * smallMaxAngVel) / smallScale;
     }
 
-    if ((inStatus & JumpJets) != 0)
-    {
+    if ((inStatus & JumpJets) != 0) {
         int16_t jumpJetsShort;
         buf = nboUnpackShort(buf, jumpJetsShort);
         jumpJetsScale = ((float)jumpJetsShort) / smallScale;
-    }
-    else
+    } else
         jumpJetsScale = 0.0f;
 
-    if ((inStatus & OnDriver) != 0)
-    {
+    if ((inStatus & OnDriver) != 0) {
         int32_t inPhyDrv;
         buf = nboUnpackInt(buf, inPhyDrv);
         phydrv = int(inPhyDrv);
-    }
-    else
+    } else
         phydrv = -1;
 
-    if ((inStatus & UserInputs) != 0)
-    {
+    if ((inStatus & UserInputs) != 0) {
         int16_t userSpeedShort, userAngVelShort;
         buf = nboUnpackShort(buf, userSpeedShort);
         buf = nboUnpackShort(buf, userAngVelShort);
         userSpeed = ((float)userSpeedShort * smallMaxVel) / smallScale;
         userAngVel = ((float)userAngVelShort * smallMaxAngVel) / smallScale;
-    }
-    else
-    {
+    } else {
         userSpeed = 0.0f;
         userAngVel = 0.0f;
     }
@@ -240,7 +213,6 @@ const void* PlayerState::unpack(const void* buf, uint16_t code)
 
     return buf;
 }
-
 
 // Local Variables: ***
 // mode: C++ ***

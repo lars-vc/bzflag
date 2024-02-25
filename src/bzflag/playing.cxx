@@ -4291,8 +4291,8 @@ void setLookAtMarker(void)
             continue;
 
         // compute position in my local coordinate system
-        const fvec3 rPos(remotePlayers[i]->getPosition()[0],remotePlayers[i]->getPosition()[1],
-                         remotePlayers[i]->getPosition()[2]);
+        const fvec3 rPos(remotePlayers[i]->getPosition()[0].val(),remotePlayers[i]->getPosition()[1].val(),
+                         remotePlayers[i]->getPosition()[2].val());
         const float x = (c * (rPos.x - myPos.x)) - (s * (rPos.y - myPos.y));
         const float y = (s * (rPos.x - myPos.x)) + (c * (rPos.y - myPos.y));
 

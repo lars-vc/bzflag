@@ -942,8 +942,8 @@ void            HUDRenderer::renderStatus(void)
             fm.drawString(x, drawY, 0, minorFontFace, minorFontSize, msg);
 
             // draw the postion
-            msg = TextUtils::format("Position [%d %d %d]", (int)target->getPosition()[0], (int)target->getPosition()[1],
-                                    (int)target->getPosition()[2]);
+            msg = TextUtils::format("Position [%d %d %d]", (int)target->getPosition()[0].val(), (int)target->getPosition()[1].val(),
+                                    (int)target->getPosition()[2].val());
             x = (float)window.getWidth() - 0.25f * h - fm.getStrLength(minorFontFace, minorFontSize, msg);
             fm.drawString(x,drawY-smallZHeight, 0, minorFontFace, minorFontSize, msg);
 
@@ -1102,8 +1102,8 @@ void            HUDRenderer::renderTankLabels(SceneRenderer& renderer)
             const std::string name = pl->getCallSign();
             double x, y, z;
             hudSColor3fv(Team::getRadarColor(pl->getTeam()));
-            gluProject(pl->getPosition()[0], pl->getPosition()[1],
-                       pl->getPosition()[2]/*+BZDB.eval(StateDatabase::BZDB_MUZZLEHEIGHT)*3.0f*/, model, proj, view, &x, &y, &z);
+            gluProject(pl->getPosition()[0].val(), pl->getPosition()[1].val(),
+                       pl->getPosition()[2].val()/*+BZDB.eval(StateDatabase::BZDB_MUZZLEHEIGHT)*3.0f*/, model, proj, view, &x, &y, &z);
             if (z >= 0.0 && z <= 1.0)
             {
                 FontManager &fm = FontManager::instance();
@@ -1761,7 +1761,7 @@ void            HUDRenderer::setOneToOnePrj()
 
 void            HUDRenderer::coverWhenBurrowed(const LocalPlayer &myTank)
 {
-    const float z = myTank.getPosition()[2];
+    const float z = myTank.getPosition()[2].val();
     if (z >= 0.0f)
         return;
 

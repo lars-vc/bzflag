@@ -347,8 +347,10 @@ class Overseer {
         if (index != -1) {
             update_path_dummy(d, resolve_dummy_interal(d)->val);
             due_for_path_update.erase(std::remove(due_for_path_update.begin(),
-                                                  due_for_path_update.end(), 8),
+                                                  due_for_path_update.end(),
+                                                  d->id),
                                       due_for_path_update.end());
+            counter[d->id] = 0;
             // due_for_path_update.erase(due_for_path_update.begin() + index);
             // printf("Updated path\n");
             // for (const auto &elem : catalog) { std::cout << elem.first << ","
@@ -383,7 +385,7 @@ class Overseer {
 
     template <typename T> Dummy<T> *create_path_obj() {
         // int len = rand();
-        int len = 1;
+        int len = 10;
         Dummy<T> *d = create_path_rec<T>(0, len);
         // T *valptr = (T *)malloc(sizeof(T));
         T *valptr = new T();
@@ -459,10 +461,15 @@ class Overseer {
     template <typename T> void change_value_dummy(Dummy<T> *d, T val) {
         // TODO: When to update?
         counter[d->id]++;
-        if (counter[d->id] > 6000) {
+
+        if (counter[d->id] > 1000 &&
+            std::find(due_for_path_update.begin(), due_for_path_update.end(),
+                      d->id) == due_for_path_update.end()) {
+            printf("DUE\n");
             due_for_path_update.push_back(d->id);
         }
         *resolve_dummy(d)->val = val;
+        // memcpy(resolve_dummy(d)->val, &val, sizeof(T));
     }
 };
 
@@ -549,6 +556,7 @@ template <typename T> class ProtectedObj {
 
     ProtectedObj &operator=(T val) {
         // TODO: This doesn't not work for objects
+        printf("LARS ERR\n");
         obfuscate(val);
         return *this;
     }
@@ -599,7 +607,9 @@ template <typename T> class ProtectedObj {
     void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
 };
 
-struct TEST {
+class TEST {
+  public:
+    TEST() : val(2) {}
     Protected<int> val = 0;
 } typedef TEST;
 

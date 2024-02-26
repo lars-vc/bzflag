@@ -42,11 +42,12 @@ PlayerState::PlayerState()
     // pos[1] = SplitFloat(0.0f);
     // pos[2] = SplitFloat(0.0f);
     pos[0] = pos[1] = pos[2] = 0.0f;
-    // ProtectedObj<TEST> p = ProtectedObj<TEST>();
-    // printf("dot: %d\n", p.dot().val.val());
-    // p.dot().val = 1;
-    // printf("dot: %d\n", p.dot().val.val());
-    // printf("dot: %d\n", p.dot().val.val());
+    // ProtectedObj<TEST> p;
+    // printf("dot2: %d\n", p.dot().val.val());
+    // // p = TEST();
+    // printf("dot1: %d\n", p.dot().val.val());
+    // p.dot().val = 5;
+    // printf("dot5: %d\n", p.dot().val.val());
     // printf("dot: %d\n", p.dot().val.val());
     // printf("dot: %d\n", p.dot().val.val());
     velocity[0] = velocity[1] = velocity[2] = 0.0f;

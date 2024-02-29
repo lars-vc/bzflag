@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <vector>
 #define protectfunc /*PROTECTOR_FUNCTION_PRIO=5*/
+#define PERF_MODE 0
 ///////////////////////////////////////////
 // protector
 ///////////////////////////////////////////
@@ -313,12 +314,17 @@ class Overseer {
             d->d3 = create_path_rec<T>(depth + 1, max_depth);
         }
         // d->tail = new DummyTail<T>();
+        // TODO: do we only initialize obj at maxdepth?
         if (depth == max_depth) {
             d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
-            d->tail->val = (T *)malloc(sizeof(T));
-            // d->tail->val = nullptr;
             alloc_sum += sizeof(DummyTail<T>);
-            alloc_sum += sizeof(T);
+            if (PERF_MODE)
+                d->tail->val = nullptr;
+            else {
+                d->tail->val = (T *)malloc(sizeof(T));
+                // d->tail->val = new T();
+                alloc_sum += sizeof(T);
+            }
         }
         // d->tail->val = nullptr;
         // TODO: LARS
@@ -331,13 +337,23 @@ class Overseer {
         return d;
     }
 
-    template <typename T> void free_path_rec(Dummy<T> *d) {
+    template <typename T> void free_path_rec(Dummy<T> *d, int id) {
         if (d->d1 != nullptr) {
-            free_path_rec(d->d1);
-            free_path_rec(d->d2);
-            free_path_rec(d->d3);
+            free_path_rec(d->d1, id);
+            free_path_rec(d->d2, id);
+            free_path_rec(d->d3, id);
         } else {
-            free(d->tail->val);
+            // TODO: LARS this leaks a bit cause we don't free the correct end
+            if (!PERF_MODE) {
+                // if (obj) {
+                //     delete d->tail->val;
+                // } else {
+                // free(d->tail->val);
+                // }
+                if (d->id != id) {
+                    free(d->tail->val);
+                }
+            }
             free(d->tail);
         }
         catalog.erase(d->id);
@@ -385,11 +401,13 @@ class Overseer {
         int len = 10;
         Dummy<T> *d = create_path_rec<T>(0, len);
         T *valptr = (T *)malloc(sizeof(T));
+        // T *valptr = new T();
         memcpy(valptr, &val, sizeof(T));
         update_path_dummy(d, valptr);
         paths_created++;
-        printf("Created path: id=%d name=%s count=%d\n", d->id,
+        printf("Created regpath: id=%d name=%s count=%d\n", d->id,
                typeid(val).name(), paths_created);
+        free(valptr);
         return d;
     }
 
@@ -401,17 +419,29 @@ class Overseer {
         T *valptr = new T();
         update_path_dummy(d, valptr);
         paths_created++;
-        printf("Created path: id=%d name=%s count=%d\n", d->id,
+        printf("Created objpath: id=%d name=%s count=%d\n", d->id,
                typeid(*valptr).name(), paths_created);
+        // we do new and free to avoid calling the destructor of T which would
+        // kill the protected<float>s it possesses
+        free(valptr);
         return d;
     }
 
     template <typename T> void free_path(Dummy<T> *d) {
-        printf("Freed:        id=%d\n", d->id);
-        free_path_rec(d);
+        printf("Freed reg:        id=%d\n", d->id);
+        free_path_rec(d, -1);
     }
 
-    template <typename T> DummyTail<T> *resolve_dummy(Dummy<T> *d) {
+    template <typename T> void free_path_obj(Dummy<T> *d) {
+        printf("Freed obj:        id=%d\n", d->id);
+        // call destructor of the obj
+        Dummy<T> *special = resolve_dummy(d);
+        int id = special->id;
+        delete special->tail->val;
+        free_path_rec(d, id);
+    }
+
+    template <typename T> Dummy<T> *resolve_dummy(Dummy<T> *d) {
         // check if dummy is due for chain update
         // TODO: LARS PUT BACK
         check_and_update_dummy(d);
@@ -432,11 +462,11 @@ class Overseer {
             }
             pick = catalog[next->id];
         }
-        return next->tail;
+        return next;
     }
 
     template <typename T> T *resolve_dummy_val(Dummy<T> *d) {
-        return resolve_dummy(d)->val;
+        return resolve_dummy(d)->tail->val;
     }
 
     template <typename T> void update_path_dummy(Dummy<T> *d) {
@@ -464,7 +494,11 @@ class Overseer {
         }
         catalog[curr->id] = 4;
         // printf("memcpy\n");
+        if (PERF_MODE)
+            curr->tail->val = (T *)malloc(sizeof(T));
         memcpy(curr->tail->val, val, sizeof(T));
+        if (PERF_MODE)
+            free(val);
         // curr->tail->val = val;
     }
 
@@ -480,7 +514,7 @@ class Overseer {
             printf("DUE\n");
             due_for_path_update.push_back(d->id);
         }
-        *resolve_dummy(d)->val = val;
+        *resolve_dummy(d)->tail->val = val;
         // memcpy(resolve_dummy(d)->val, &val, sizeof(T));
     }
 };
@@ -568,7 +602,7 @@ template <typename T> class ProtectedObj {
     // }
     ~ProtectedObj() {
         // printf("freedobj\n");
-        overseer->free_path(path);
+        overseer->free_path_obj(path);
     }
 
     ProtectedObj &operator=(T val) {

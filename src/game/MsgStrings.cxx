@@ -818,6 +818,7 @@ static MsgStringList handleMsgPlayerUpdate (PacketInfo *pi)
     d = nboUnpackFloat (d, timestamp);
     d = nboUnpackUByte (d, index);
     d = state.unpack (d, pi->code);
+    printf("handleMsgPlayerUpdate\n");
     const float tmp[3] = { state.pos[0].val(), state.pos[1].val(), state.pos[2].val()};
 
     listPush (list, 1, "player: %s", strPlayer(index).c_str());

@@ -54,6 +54,7 @@ void BaseLocalPlayer::update(float inputDT)
     if (dt < MIN_DT_LIMIT)
         return;
 
+    // LARS FIX1
     lastPosition[0] = oldPosition[0];
     lastPosition[1] = oldPosition[1];
     lastPosition[2] = oldPosition[2];

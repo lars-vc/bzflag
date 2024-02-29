@@ -108,6 +108,7 @@ Player::Player(const PlayerId& _id, TeamColor _team,
         // make scene nodes
 
         const float tmp[3] = { state.dot().pos[0].val(), state.dot().pos[1].val(), state.dot().pos[2].val()};
+        // FIX2
         tankNode = new TankSceneNode(tmp, forward);
         tankIDLNode = new TankIDLSceneNode(tankNode);
         changeTeam(team);
@@ -1444,7 +1445,10 @@ void Player::setDeadReckoning()
     inputAngVel = state.dot().angVel;
 
     const float tmp[3] = { getPosition()[0].val(), getPosition()[1].val(), getPosition()[2].val()};
-    memcpy(inputPos, tmp, sizeof(float[3]));
+    inputPos[0] = tmp[0];
+    inputPos[1] = tmp[1];
+    inputPos[2] = tmp[2];
+    // memcpy(inputPos, tmp, sizeof(float[3]));
     memcpy(inputVel, state.dot().velocity, sizeof(float[3]));
     inputPhyDrv = state.dot().phydrv;
 

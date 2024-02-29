@@ -10,6 +10,8 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+// TODO: remove this
+int LARSCOUNT = 0;
 // interface header
 #include "playing.h"
 
@@ -7411,9 +7413,18 @@ static void     playingLoop()
             myTank->updateTank(dt, true);
         for (i = 0; i < curMaxPlayers; i++)
         {
-            if (remotePlayers[i])
+            if (remotePlayers[i]) {
                 remotePlayers[i]->updateTank(dt, false);
+                if (LARSCOUNT == 1000){
+                    auto p = remotePlayers[i]->getPosition();
+                    printf("Remote player %d: %f %f %f\n", i, p[0].val(), p[1].val(), p[2].val());
+                }
+            }
         }
+        if (LARSCOUNT == 5000){
+            LARSCOUNT = 0;
+        }
+        LARSCOUNT++;
 
         // reposition flags
         updateFlags(dt);

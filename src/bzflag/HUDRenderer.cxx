@@ -539,6 +539,7 @@ void HUDRenderer::AddEnhancedNamedMarker(const fvec3& pos, const fvec4& color,
 void HUDRenderer::AddEnhancedMarker(const fvec3& pos, const fvec4& color,
                                     bool friendly, float zShift )
 {
+    printf("MARKER ADDED\n");
     EnhancedHUDMarker newMarker(pos, color);
     newMarker.pos.z += zShift;
     newMarker.friendly = friendly;

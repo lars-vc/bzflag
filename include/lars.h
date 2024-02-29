@@ -278,6 +278,7 @@ template <typename T> struct Dummy {
     Dummy<T> *d3;
     DummyTail<T> *tail;
 };
+
 class Overseer {
   private:
     // idk i need this function without the if check cus otherwise we cause inf
@@ -305,21 +306,27 @@ class Overseer {
         int c = totalcounter;
         totalcounter++;
         Dummy<T> *d = new Dummy<T>();
+        alloc_sum += sizeof(Dummy<T>);
         if (depth < max_depth) {
             d->d1 = create_path_rec<T>(depth + 1, max_depth);
             d->d2 = create_path_rec<T>(depth + 1, max_depth);
             d->d3 = create_path_rec<T>(depth + 1, max_depth);
         }
         // d->tail = new DummyTail<T>();
-        d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
-        d->tail->val = (T *)malloc(sizeof(T));
+        if (depth == max_depth) {
+            d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
+            d->tail->val = (T *)malloc(sizeof(T));
+            // d->tail->val = nullptr;
+            alloc_sum += sizeof(DummyTail<T>);
+            alloc_sum += sizeof(T);
+        }
         // d->tail->val = nullptr;
         // TODO: LARS
         // d->id = catalog.size();
         d->id = c;
         // d->id = rand();
         counter[d->id] = 0;
-        catalog[d->id] = -1;
+        // catalog[d->id] = -1;
         // d->tail->val = rand();
         return d;
     }
@@ -329,10 +336,11 @@ class Overseer {
             free_path_rec(d->d1);
             free_path_rec(d->d2);
             free_path_rec(d->d3);
+        } else {
+            free(d->tail->val);
+            free(d->tail);
         }
         catalog.erase(d->id);
-        free(d->tail->val);
-        free(d->tail);
         // TODO: fix warning
         delete d;
     }
@@ -357,6 +365,7 @@ class Overseer {
             // << elem.second << " ";
             // }
             // printf("\n");
+            printf("Allocated: %d\n", alloc_sum);
         }
     }
 
@@ -368,6 +377,7 @@ class Overseer {
     std::vector<int> due_for_path_update;
     int paths_created = 0;
     int totalcounter = 0;
+    int alloc_sum = 0;
 
   public:
     template <typename T> Dummy<T> *create_path(T val) {
@@ -403,6 +413,7 @@ class Overseer {
 
     template <typename T> DummyTail<T> *resolve_dummy(Dummy<T> *d) {
         // check if dummy is due for chain update
+        // TODO: LARS PUT BACK
         check_and_update_dummy(d);
 
         int pick = catalog[d->id];
@@ -434,6 +445,7 @@ class Overseer {
     }
 
     template <typename T> void update_path_dummy(Dummy<T> *d, T *val) {
+        // TODO: could clear out old paths out of catalog to save memory
         Dummy<T> *curr = d;
         while (curr->d1 != nullptr) {
             int pick = rand() % 3;
@@ -479,13 +491,18 @@ inline Overseer *overseer = new Overseer();
 template <typename T> class Protected {
   private:
     Dummy<T> *path;
-    T deobfuscate() const { return *overseer->resolve_dummy_val(path); }
-    void obfuscate(T val) { overseer->change_value_dummy(path, val); }
+    // TODO: undo this
+    T deobfuscate() const {
+        return *overseer->resolve_dummy_val(path) + 10000.0f;
+    }
+    void obfuscate(T val) {
+        overseer->change_value_dummy(path, val - 10000.0f);
+    }
 
   public:
     Protected() { path = overseer->create_path(static_cast<T>(0)); }
     Protected(T val) { path = overseer->create_path(val); }
-    Protected(Protected const &p) { path = overseer->create_path(p.val()); }
+    Protected(Protected<T> const &p) { path = overseer->create_path(p.val()); }
     // TODO: LARS
     // Protected(Protected &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
     ~Protected() {

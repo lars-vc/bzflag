@@ -9,6 +9,8 @@
 #include <vector>
 #define protectfunc /*PROTECTOR_FUNCTION_PRIO=5*/
 #define PERF_MODE 0
+#define TTLU_MAX 240
+#define START_LEN 3
 ///////////////////////////////////////////
 // protector
 ///////////////////////////////////////////
@@ -280,33 +282,23 @@ template <typename T> struct Dummy {
     DummyTail<T> *tail;
 };
 
+// TODO: do we use this?
+template <typename T> struct DummyHead {
+    Dummy<T> *d;
+    // XOR these
+    long ttlu;
+    short ttlu_max;
+    long times_updated;
+
+    bool is_obj;
+};
+
 class Overseer {
   private:
-    // idk i need this function without the if check cus otherwise we cause inf
-    // recursion but I also want to keep the other function
-    template <typename T> DummyTail<T> *resolve_dummy_interal(Dummy<T> *d) {
-        int pick = catalog[d->id];
-        Dummy<T> *next = d;
-        while (pick != 4) {
-            switch (pick) {
-            case 0:
-                next = next->d1;
-                break;
-            case 1:
-                next = next->d2;
-                break;
-            case 2:
-                next = next->d3;
-                break;
-            }
-            pick = catalog[next->id];
-        }
-        return next->tail;
-    }
     template <typename T> Dummy<T> *create_path_rec(int depth, int max_depth) {
-        int c = totalcounter;
-        totalcounter++;
         Dummy<T> *d = new Dummy<T>();
+        d->id = totalcounter;
+        totalcounter++;
         alloc_sum += sizeof(Dummy<T>);
         if (depth < max_depth) {
             d->d1 = create_path_rec<T>(depth + 1, max_depth);
@@ -329,7 +321,6 @@ class Overseer {
         // d->tail->val = nullptr;
         // TODO: LARS
         // d->id = catalog.size();
-        d->id = c;
         // d->id = rand();
         counter[d->id] = 0;
         // catalog[d->id] = -1;
@@ -361,67 +352,89 @@ class Overseer {
         delete d;
     }
 
-    template <typename T> void check_and_update_dummy(Dummy<T> *d) {
+    template <typename T> void check_and_update_head(DummyHead<T> *head) {
         int index = -1;
         for (int i : due_for_path_update) {
-            if (i == d->id) {
+            if (i == head->d->id) {
                 index = i;
             }
         }
         if (index != -1) {
-            update_path_dummy(d, resolve_dummy_interal(d)->val);
+            update_path_dummy(head->d, resolve_dummy(head->d)->tail->val);
             due_for_path_update.erase(std::remove(due_for_path_update.begin(),
                                                   due_for_path_update.end(),
-                                                  d->id),
+                                                  head->d->id),
                                       due_for_path_update.end());
-            counter[d->id] = 0;
-            // due_for_path_update.erase(due_for_path_update.begin() + index);
-            // printf("Updated path\n");
-            // for (const auto &elem : catalog) { std::cout << elem.first << ","
-            // << elem.second << " ";
-            // }
-            // printf("\n");
-            printf("Allocated: %d\n", alloc_sum);
+            counter[head->d->id] = 0;
+            head->ttlu = time;
+            head->times_updated += 1;
+            // Make chain longer over time
+            // every 10 updated increase to a max len of 10
+            printf("Updated path: id=%d", head->d->id);
+            if (head->times_updated % 10 == 0 &&
+                head->times_updated + START_LEN * 10 < 100) {
+                // TODO: decreasing lengths
+                change_chain_len(head->d,
+                                 (head->times_updated / 10) + START_LEN);
+                printf("and increased length to %ld",
+                       (head->times_updated / 10) + START_LEN);
+            }
+            printf("\n");
+
+            printf("list: ");
+            for (auto const &x : due_for_path_update) {
+                printf("id=%d ", x);
+            }
+            printf("\n");
         }
     }
 
-    // id to correct path
-    std::map<int, int> catalog;
-    // id to amount of times updated
-    std::map<int, int> counter;
-    // update path on next resolve
-    std::vector<int> due_for_path_update;
-    int paths_created = 0;
-    int totalcounter = 0;
-    int alloc_sum = 0;
+    template <typename T>
+    void change_chain_rec(Dummy<T> *d, int currlen, int len) {
+        if (d->d1 == nullptr) {
+            if (currlen < len) {
+                d->d1 = new Dummy<T>();
+                d->d1->id = totalcounter;
+                totalcounter++;
+                d->d2 = new Dummy<T>();
+                d->d2->id = totalcounter;
+                totalcounter++;
+                d->d3 = new Dummy<T>();
+                d->d3->id = totalcounter;
+                totalcounter++;
 
-  public:
-    // TODO: merge these two functions
-    template <typename T> Dummy<T> *create_path(T val) {
-        // int len = rand();
-        int len = 10;
-        Dummy<T> *d = create_path_rec<T>(0, len);
-        // T *valptr = (T *)malloc(sizeof(T));
-        T *valptr = new T();
-        memcpy(valptr, &val, sizeof(T));
-        update_path_dummy(d, valptr);
-        paths_created++;
-        printf("Created regpath: id=%d name=%s count=%d\n", d->id,
-               typeid(val).name(), paths_created);
-        // free(valptr);
-        operator delete(valptr);
-        return d;
+                free(d->tail->val);
+                free(d->tail);
+
+            } else if (currlen == len) {
+                d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
+                d->tail->val = (T *)malloc(sizeof(T));
+                return;
+            } else {
+                printf("ERROR: currlen > len, %d, %d\n", currlen, len);
+                return;
+            }
+        }
+        change_chain_rec(d->d1, currlen + 1, len);
+        change_chain_rec(d->d2, currlen + 1, len);
+        change_chain_rec(d->d3, currlen + 1, len);
     }
 
-    template <typename T> Dummy<T> *create_path_obj() {
-        // int len = rand();
-        int len = 10;
+    // TODO: decreasing lengths
+    template <typename T> void change_chain_len(Dummy<T> *d, int len) {
+        T *tmp = (T *)malloc(sizeof(T));
+        memcpy(tmp, resolve_dummy(d)->tail->val, sizeof(T));
+        change_chain_rec(d, 0, len);
+        update_path_dummy(d, tmp);
+        free(tmp);
+    }
+
+    template <typename T> Dummy<T> *create_path(int len) {
         Dummy<T> *d = create_path_rec<T>(0, len);
-        // T *valptr = (T *)malloc(sizeof(T));
         T *valptr = new T();
         update_path_dummy(d, valptr);
         paths_created++;
-        printf("Created objpath: id=%d name=%s count=%d\n", d->id,
+        printf("Created path: id=%d name=%s count=%d\n", d->id,
                typeid(*valptr).name(), paths_created);
         // we do new and free to avoid calling the destructor of T which would
         // kill the protected<float>s it possesses
@@ -429,6 +442,11 @@ class Overseer {
         // try not to mix new and free
         operator delete(valptr);
         return d;
+    }
+
+    template <typename T> void change_value_dummy(Dummy<T> *d, T val) {
+        // *resolve_dummy(d)->tail->val = val;
+        memcpy(resolve_dummy(d)->tail->val, &val, sizeof(T));
     }
 
     template <typename T> void free_path(Dummy<T> *d) {
@@ -446,10 +464,6 @@ class Overseer {
     }
 
     template <typename T> Dummy<T> *resolve_dummy(Dummy<T> *d) {
-        // check if dummy is due for chain update
-        // TODO: LARS PUT BACK
-        check_and_update_dummy(d);
-
         int pick = catalog[d->id];
         Dummy<T> *next = d;
         while (pick != 4) {
@@ -497,30 +511,63 @@ class Overseer {
             }
         }
         catalog[curr->id] = 4;
-        // printf("memcpy\n");
         if (PERF_MODE)
             curr->tail->val = (T *)malloc(sizeof(T));
         memcpy(curr->tail->val, val, sizeof(T));
         if (PERF_MODE)
             free(val);
-        // curr->tail->val = val;
+    }
+
+    // id to correct path
+    std::map<int, int> catalog;
+    // id to amount of times updated
+    std::map<int, int> counter;
+    // update path on next resolve
+    std::vector<int> due_for_path_update;
+    int paths_created = 0;
+    int totalcounter = 0;
+    int alloc_sum = 0;
+    long time = 0;
+
+  public:
+    template <typename T> DummyHead<T> *create_head(bool is_obj) {
+        DummyHead<T> *head = new DummyHead<T>();
+        head->ttlu_max = TTLU_MAX;
+        head->times_updated = 0;
+        head->is_obj = is_obj;
+        head->d = create_path<T>(START_LEN);
+        return head;
+    }
+
+    template <typename T> void free_head(DummyHead<T> *head) {
+        if (head->is_obj)
+            free_path_obj(head->d);
+        else
+            free_path(head->d);
+        delete head;
+    }
+
+    template <typename T> Dummy<T> *resolve_head(DummyHead<T> *head) {
+        // check if dummy is due for chain update
+        if (time - head->ttlu >= head->ttlu_max &&
+            std::find(due_for_path_update.begin(), due_for_path_update.end(),
+                      head->d->id) == due_for_path_update.end()) {
+            due_for_path_update.push_back(head->d->id);
+        }
+        check_and_update_head(head);
+        return resolve_dummy(head->d);
+    }
+    template <typename T> T *resolve_head_val(DummyHead<T> *head) {
+        return resolve_head(head)->tail->val;
     }
 
     // Could decide here whether to update chain or not based on knowledge of
     // change of value
-    template <typename T> void change_value_dummy(Dummy<T> *d, T val) {
-        // TODO: When to update?
-        counter[d->id]++;
-
-        if (counter[d->id] > 1000 &&
-            std::find(due_for_path_update.begin(), due_for_path_update.end(),
-                      d->id) == due_for_path_update.end()) {
-            printf("DUE\n");
-            due_for_path_update.push_back(d->id);
-        }
-        *resolve_dummy(d)->tail->val = val;
-        // memcpy(resolve_dummy(d)->val, &val, sizeof(T));
+    template <typename T> void change_value(DummyHead<T> *head, T val) {
+        change_value_dummy(head->d, val);
     }
+
+    void inc_time(long inc = 1) { time += inc; }
 };
 
 // TODO: Does this work properly?
@@ -528,25 +575,24 @@ inline Overseer *overseer = new Overseer();
 
 template <typename T> class Protected {
   private:
-    Dummy<T> *path;
+    DummyHead<T> *head;
     // TODO: undo this
-    T deobfuscate() const {
-        return *overseer->resolve_dummy_val(path) + 10000.0f;
-    }
-    void obfuscate(T val) {
-        overseer->change_value_dummy(path, val - 10000.0f);
-    }
+    T deobfuscate() const { return *overseer->resolve_head_val(head); }
+    void obfuscate(T val) { overseer->change_value(head, val); }
 
   public:
-    Protected() { path = overseer->create_path(static_cast<T>(0)); }
-    Protected(T val) { path = overseer->create_path(val); }
-    Protected(Protected<T> const &p) { path = overseer->create_path(p.val()); }
+    Protected() { head = overseer->create_head<T>(false); }
+    Protected(T val) {
+        head = overseer->create_head<T>(false);
+        overseer->change_value(head, val);
+    }
+    Protected(Protected<T> const &p) {
+        head = overseer->create_head<T>(false);
+        overseer->change_value(head, p.val());
+    }
     // TODO: LARS
     // Protected(Protected &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
-    ~Protected() {
-        // printf("freed\n");
-        overseer->free_path(path);
-    }
+    ~Protected() { overseer->free_head(head); }
 
     Protected &operator=(T val) {
         obfuscate(val);
@@ -589,25 +635,23 @@ template <typename T> class Protected {
 
 template <typename T> class ProtectedObj {
   private:
-    Dummy<T> *path;
-    T &deobfuscate() const { return *overseer->resolve_dummy_val(path); }
-    void obfuscate(T val) { overseer->change_value_dummy(path, val); }
+    DummyHead<T> *head;
+    T &deobfuscate() const { return *overseer->resolve_head_val(head); }
+    void obfuscate(T val) { overseer->change_value(head, val); }
 
   public:
-    ProtectedObj() { path = overseer->create_path_obj<T>(); }
+    ProtectedObj() { head = overseer->create_head<T>(true); }
     // ProtectedObj(T val) { path = overseer->create_path(val); }
     ProtectedObj(ProtectedObj const &p) {
-        path = overseer->create_path(p.val());
+        head = overseer->create_head<T>();
+        change_value(head, p.val());
     }
     // TODO:
     // ProtectedObj(ProtectedObj &&p) {
     //     printf("move construct\n");
     //     path = std::move(p.path);
     // }
-    ~ProtectedObj() {
-        // printf("freedobj\n");
-        overseer->free_path_obj(path);
-    }
+    ~ProtectedObj() { overseer->free_head(head); }
 
     ProtectedObj &operator=(T val) {
         // TODO: This doesn't not work for objects

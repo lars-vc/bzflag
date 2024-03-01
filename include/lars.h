@@ -396,18 +396,20 @@ class Overseer {
     int alloc_sum = 0;
 
   public:
+    // TODO: merge these two functions
     template <typename T> Dummy<T> *create_path(T val) {
         // int len = rand();
         int len = 10;
         Dummy<T> *d = create_path_rec<T>(0, len);
-        T *valptr = (T *)malloc(sizeof(T));
-        // T *valptr = new T();
+        // T *valptr = (T *)malloc(sizeof(T));
+        T *valptr = new T();
         memcpy(valptr, &val, sizeof(T));
         update_path_dummy(d, valptr);
         paths_created++;
         printf("Created regpath: id=%d name=%s count=%d\n", d->id,
                typeid(val).name(), paths_created);
-        free(valptr);
+        // free(valptr);
+        operator delete(valptr);
         return d;
     }
 
@@ -423,7 +425,9 @@ class Overseer {
                typeid(*valptr).name(), paths_created);
         // we do new and free to avoid calling the destructor of T which would
         // kill the protected<float>s it possesses
-        free(valptr);
+        // free(valptr);
+        // try not to mix new and free
+        operator delete(valptr);
         return d;
     }
 

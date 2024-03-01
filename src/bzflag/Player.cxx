@@ -1137,9 +1137,9 @@ void Player::getDeadReckoning(float* predictedPos, float* predictedAzimuth,
     if (inputStatus & PlayerState::Paused)
     {
         // don't move when paused
-        predictedPos[0] = inputPos[0];
-        predictedPos[1] = inputPos[1];
-        predictedPos[2] = inputPos[2];
+        predictedPos[0] = inputPos[0].val();
+        predictedPos[1] = inputPos[1].val();
+        predictedPos[2] = inputPos[2].val();
         predictedVel[0] = 0.0f;
         predictedVel[1] = 0.0f;
         predictedVel[2] = 0.0f;
@@ -1149,21 +1149,21 @@ void Player::getDeadReckoning(float* predictedPos, float* predictedAzimuth,
         // no control when falling
         predictedVel[0] = inputVel[0];
         predictedVel[1] = inputVel[1];
-        predictedPos[0] = inputPos[0] + (dt * inputVel[0]);
-        predictedPos[1] = inputPos[1] + (dt * inputVel[1]);
+        predictedPos[0] = inputPos[0].val() + (dt * inputVel[0]);
+        predictedPos[1] = inputPos[1].val() + (dt * inputVel[1]);
         // only turn if alive
         if (inputStatus & PlayerState::Alive)
             *predictedAzimuth += (dt * inputAngVel);
         // following the parabola
         predictedVel[2] = inputVel[2] + (BZDBCache::gravity * dt);
-        predictedPos[2] = inputPos[2] + (inputVel[2] * dt) +
+        predictedPos[2] = inputPos[2].val() + (inputVel[2] * dt) +
                           (0.5f * BZDBCache::gravity * dt * dt);
     }
     else
     {
         // velocity[2] is zero when not falling, except for Burrow flag
         predictedVel[2] = inputVel[2];
-        predictedPos[2] = inputPos[2] + (inputVel[2] * dt);
+        predictedPos[2] = inputPos[2].val() + (inputVel[2] * dt);
 
         // different algorithms for tanks moving in
         // a straight line vs. turning in a circle
@@ -1172,8 +1172,8 @@ void Player::getDeadReckoning(float* predictedPos, float* predictedAzimuth,
             // move straight
             predictedVel[0] = inputRelVel[0];
             predictedVel[1] = inputRelVel[1];
-            predictedPos[0] = inputPos[0] + (dt * inputRelVel[0]);
-            predictedPos[1] = inputPos[1] + (dt * inputRelVel[1]);
+            predictedPos[0] = inputPos[0].val() + (dt * inputRelVel[0]);
+            predictedPos[1] = inputPos[1].val() + (dt * inputRelVel[1]);
         }
         else
         {
@@ -1199,8 +1199,8 @@ void Player::getDeadReckoning(float* predictedPos, float* predictedAzimuth,
             {
                 predictedVel[0] = inputRelVel[0];
                 predictedVel[1] = inputRelVel[1];
-                predictedPos[0] = inputPos[0] + (dt * inputRelVel[0]);
-                predictedPos[1] = inputPos[1] + (dt * inputRelVel[1]);
+                predictedPos[0] = inputPos[0].val() + (dt * inputRelVel[0]);
+                predictedPos[1] = inputPos[1].val() + (dt * inputRelVel[1]);
             }
             else
             {
@@ -1423,9 +1423,9 @@ void Player::setDeadReckoning(float timestamp)
     inputTimestamp = timestamp;
     if (dt > 0.0f && dt < MaxUpdateTime * 1.5f)
     {
-        apparentVelocity[0] = (inputPos[0] - state.dot().pos[0].val()) / dt;
-        apparentVelocity[1] = (inputPos[1] - state.dot().pos[1].val()) / dt;
-        apparentVelocity[2] = (inputPos[2] - state.dot().pos[2].val()) / dt;
+        apparentVelocity[0] = (inputPos[0].val() - state.dot().pos[0].val()) / dt;
+        apparentVelocity[1] = (inputPos[1].val() - state.dot().pos[1].val()) / dt;
+        apparentVelocity[2] = (inputPos[2].val() - state.dot().pos[2].val()) / dt;
     }
 
     // set the current state
@@ -1467,8 +1467,8 @@ void Player::setDeadReckoning()
         const float radius = (inputRelSpeed / inputRelAngVel);
         inputTurnVector[0] = +sinf(inputAzimuth) * radius;
         inputTurnVector[1] = -cosf(inputAzimuth) * radius;
-        inputTurnCenter[0] = inputPos[0] - inputTurnVector[0];
-        inputTurnCenter[1] = inputPos[1] - inputTurnVector[1];
+        inputTurnCenter[0] = inputPos[0].val() - inputTurnVector[0];
+        inputTurnCenter[1] = inputPos[1].val() - inputTurnVector[1];
     }
 
     return;

@@ -329,7 +329,7 @@ class Player {
     TimeKeeper inputTime;     // time of input
     float inputTimestamp;     // input timestamp of sender
     int inputStatus;          // tank status
-    float inputPos[3];        // tank position
+    Protected<float> inputPos[3];        // tank position
     float inputVel[3];        // tank velocity
     float inputAzimuth;       // direction tank is pointing
     float inputAngVel;        // tank turn rate

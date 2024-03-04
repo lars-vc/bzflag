@@ -269,6 +269,108 @@
 //         create_new_path(val);
 //     }
 // };
+// NOTE: Can not accept types larger than 8 bytes
+template <typename T> class XOR {
+  private:
+    long mask = rand();
+    long obfus_val;
+    T deobfuscate() const { return static_cast<T>(obfus_val ^ mask); }
+    void obfuscate(T newval) { obfus_val = mask ^ static_cast<long>(newval); }
+
+  public:
+    XOR() { obfuscate(0); }
+    XOR(T val) { obfuscate(val); }
+    XOR(XOR<T> const &x) { obfuscate(x.val()); }
+    // TODO: LARS
+    // XOR(XOR &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
+    ~XOR() {}
+
+    XOR &operator=(T val) {
+        obfuscate(val);
+        return *this;
+    }
+    XOR &operator=(XOR &val) { return operator=(val.deobfuscate()); }
+    // TODO:
+    // XOR &operator=(XOR &&val) {
+    //     printf("TODO MOVE assignment\n");
+    //     return nullptr;
+    // }
+    XOR operator+(XOR add) {
+        T val = deobfuscate();
+        T valadd = add.deobfuscate();
+        XOR p(val + valadd);
+        return p;
+    }
+    XOR operator+(T add) {
+        T val = deobfuscate();
+        XOR p(val + add);
+        return p;
+    }
+    XOR &operator+=(T add) {
+        obfuscateAdd(add);
+        return *this;
+    }
+    XOR &operator++(int) { return operator+=(1); }
+    XOR operator-(XOR add) { return operator+(-add); }
+    XOR operator-(T add) { return operator+(-add); }
+    XOR &operator-=(T add) { return operator+=(-add); }
+    XOR &operator--(int) { return operator-=(1); }
+    template <typename C> bool operator>=(C comp) {
+        return (deobfuscate() >= comp);
+    }
+    template <typename C> bool operator>=(XOR<C> comp) {
+        return (deobfuscate() >= comp.val());
+    }
+    template <typename C> bool operator>(C comp) {
+        return (deobfuscate() > comp);
+    }
+    template <typename C> bool operator>(XOR<C> comp) {
+        return (deobfuscate() > comp.val());
+    }
+    template <typename C> bool operator<=(C comp) {
+        return (deobfuscate() <= comp);
+    }
+    template <typename C> bool operator<=(XOR<C> comp) {
+        return (deobfuscate() <= comp.val());
+    }
+    template <typename C> bool operator<(C comp) {
+        return (deobfuscate() < comp);
+    }
+    template <typename C> bool operator<(XOR<C> comp) {
+        return (deobfuscate() < comp.val());
+    }
+    template <typename C> bool operator==(C comp) {
+        return (deobfuscate() == comp);
+    }
+    template <typename C> bool operator==(XOR<C> comp) {
+        return (deobfuscate() == comp.val());
+    }
+    template <typename C> XOR<T> operator%(C comp) {
+        return XOR<T>(deobfuscate() % comp);
+    }
+    template <typename C> XOR<T> operator%(XOR<C> comp) {
+        return XOR<T>(deobfuscate() % comp.val());
+    }
+    template <typename C> XOR<T> operator/(C comp) {
+        return XOR<T>(deobfuscate() / comp);
+    }
+    template <typename C> XOR<T> operator/(XOR<C> comp) {
+        return XOR<T>(deobfuscate() / comp.val());
+    }
+    // operator bool() const { return deobfuscate() != 0; }
+    // Maybe this can work?
+    // operator int() const { return deobfuscate(); }
+
+    T val() { return deobfuscate(); }
+    const T val() const { return deobfuscate(); }
+    void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
+};
+template <typename T> XOR<T> operator-(const T a, const XOR<T> &b) {
+    return XOR<T>(a - b.val());
+}
+template <typename T> XOR<T> operator+(const T a, const XOR<T> &b) {
+    return XOR<T>(a + b.val());
+}
 
 template <typename T> struct DummyTail {
     T *val;
@@ -286,9 +388,9 @@ template <typename T> struct Dummy {
 template <typename T> struct DummyHead {
     Dummy<T> *d;
     // XOR these
-    long ttlu;
-    short ttlu_max;
-    long times_updated;
+    XOR<long> ttlu;
+    XOR<short> ttlu_max;
+    XOR<long> times_updated;
 
     bool is_obj;
 };
@@ -376,8 +478,8 @@ class Overseer {
                 // TODO: decreasing lengths
                 change_chain_len(head->d,
                                  (head->times_updated / 10) + START_LEN);
-                printf("and increased length to %ld",
-                       (head->times_updated / 10) + START_LEN);
+                printf(" and increased length to %ld",
+                       (head->times_updated.val() / 10) + START_LEN);
             }
             printf("\n");
 
@@ -427,6 +529,10 @@ class Overseer {
         change_chain_rec(d, 0, len);
         update_path_dummy(d, tmp);
         free(tmp);
+    }
+    template <typename T, typename C>
+    void change_chain_len(Dummy<T> *d, XOR<C> len) {
+        change_chain_len(d, len.val());
     }
 
     template <typename T> Dummy<T> *create_path(int len) {
@@ -576,7 +682,6 @@ inline Overseer *overseer = new Overseer();
 template <typename T> class Protected {
   private:
     DummyHead<T> *head;
-    // TODO: undo this
     T deobfuscate() const { return *overseer->resolve_head_val(head); }
     void obfuscate(T val) { overseer->change_value(head, val); }
 

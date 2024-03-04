@@ -42,6 +42,15 @@ PlayerState::PlayerState()
     // pos[1] = SplitFloat(0.0f);
     // pos[2] = SplitFloat(0.0f);
     pos[0] = pos[1] = pos[2] = 0.0f;
+    XOR<int> x = 0;
+    printf("XOR: %d", x.val());
+    x++;
+    printf("XOR: %d", x.val());
+    XOR<float> y = 0.0f;
+    printf("XOR: %f", y.val());
+    x++;
+    printf("XOR: %f", y.val());
+
     // ProtectedObj<TEST> p;
     // printf("dot2: %d\n", p.dot().val.val());
     // // p = TEST();

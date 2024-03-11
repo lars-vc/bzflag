@@ -816,15 +816,13 @@ class Overseer {
     // TODO: ask to inline this?
     short get_el(unsigned long id) {
         short pick = catalog[transform_id(id)];
-        // transform pick
-        //  ...
-        return pick;
+        return decode_pick(pick);
     }
 
     void set_el(unsigned long id, short pick) {
-        // transform pick
-        //  ...
-        catalog[transform_id(id)] = pick;
+        printf("pick=%d\n", pick);
+        printf("enck=%d\n", encode_pick(pick));
+        catalog[transform_id(id)] = encode_pick(pick);
     }
 
     void erase_el(unsigned long id) { catalog.erase(transform_id(id)); }
@@ -949,7 +947,7 @@ class Overseer {
         _jit_new_node_www(jit2, jit_code_orr, _RAX, _RAX, _RBX);
         // set 7thbit
         _jit_new_node_www(jit2, jit_code_ori, _RAX, _RAX, 128);
-        _jit_retr(jit2, _R11, jit_code_retr_l);
+        _jit_retr(jit2, _RAX, jit_code_retr_l);
 
         encode_pick = (psfs)_jit_emit(jit2);
         _jit_clear_state(jit2);

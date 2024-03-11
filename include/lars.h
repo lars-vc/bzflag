@@ -14,8 +14,11 @@ extern "C" {
 #define PERF_MODE 0
 #define TTLU_MAX 240
 #define START_LEN 3
-static jit_state_t *_jit;
 typedef ulong (*pulful)(ulong);
+typedef short (*psfs)(short);
+static jit_state_t *jit1;
+static jit_state_t *jit2;
+static jit_state_t *jit3;
 ///////////////////////////////////////////
 // protector
 ///////////////////////////////////////////
@@ -707,17 +710,17 @@ class Overseer {
     }
 
     template <typename T> Dummy<T> *resolve_dummy(Dummy<T> *d) {
-        int pick = get_el(d->id);
+        short pick = get_el(d->id);
         Dummy<T> *next = d;
-        while (pick != 4) {
+        while (pick) {
             switch (pick) {
-            case 0:
+            case 1:
                 next = next->d1;
                 break;
-            case 1:
+            case 2:
                 next = next->d2;
                 break;
-            case 2:
+            case 3:
                 next = next->d3;
                 break;
             }
@@ -737,18 +740,18 @@ class Overseer {
 
     template <typename T> Dummy<T> *erase_path_dummy(Dummy<T> *d) {
         // resolve and erase from catalog
-        int pick = get_el(d->id);
+        short pick = get_el(d->id);
         erase_el(d->id);
         Dummy<T> *next = d;
-        while (pick != 4) {
+        while (pick) {
             switch (pick) {
-            case 0:
+            case 1:
                 next = next->d1;
                 break;
-            case 1:
+            case 2:
                 next = next->d2;
                 break;
-            case 2:
+            case 3:
                 next = next->d3;
                 break;
             }
@@ -760,23 +763,24 @@ class Overseer {
     template <typename T> void update_path_dummy_erase(Dummy<T> *d) {
         // resolve and erase from catalog
         T *val = erase_path_dummy(d)->tail->val;
+        // TODO: isn't this the same as update_path_dummy?
         Dummy<T> *curr = d;
         while (curr->d1 != nullptr) {
-            int pick = rand() % 3;
+            short pick = (rand() % 3) + 1;
             set_el(curr->id, pick);
             switch (pick) {
-            case 0:
+            case 1:
                 curr = curr->d1;
                 break;
-            case 1:
+            case 2:
                 curr = curr->d2;
                 break;
-            case 2:
+            case 3:
                 curr = curr->d3;
                 break;
             }
         }
-        set_el(curr->id, 4);
+        set_el(curr->id, 0);
         if (PERF_MODE)
             curr->tail->val = (T *)malloc(sizeof(T));
         memcpy(curr->tail->val, val, sizeof(T));
@@ -785,24 +789,23 @@ class Overseer {
     }
 
     template <typename T> void update_path_dummy(Dummy<T> *d, T *val) {
-        // TODO: could clear out old paths out of catalog to save memory
         Dummy<T> *curr = d;
         while (curr->d1 != nullptr) {
-            int pick = rand() % 3;
+            short pick = (rand() % 3) + 1;
             set_el(curr->id, pick);
             switch (pick) {
-            case 0:
+            case 1:
                 curr = curr->d1;
                 break;
-            case 1:
+            case 2:
                 curr = curr->d2;
                 break;
-            case 2:
+            case 3:
                 curr = curr->d3;
                 break;
             }
         }
-        set_el(curr->id, 4);
+        set_el(curr->id, 0);
         if (PERF_MODE)
             curr->tail->val = (T *)malloc(sizeof(T));
         memcpy(curr->tail->val, val, sizeof(T));
@@ -812,8 +815,6 @@ class Overseer {
 
     // TODO: ask to inline this?
     short get_el(unsigned long id) {
-        // transform id
-        //  ...
         short pick = catalog[transform_id(id)];
         // transform pick
         //  ...
@@ -821,19 +822,12 @@ class Overseer {
     }
 
     void set_el(unsigned long id, short pick) {
-        // transform id
-        //  ...
         // transform pick
         //  ...
         catalog[transform_id(id)] = pick;
     }
 
-    void erase_el(unsigned long id) {
-        // transform id
-        //  ...
-
-        catalog.erase(transform_id(id));
-    }
+    void erase_el(unsigned long id) { catalog.erase(transform_id(id)); }
 
     // id to correct path
     // std::map<unsigned long, short> catalog;
@@ -845,87 +839,137 @@ class Overseer {
     unsigned long alloc_sum = 0;
     unsigned long time = 0;
     pulful transform_id;
+    psfs encode_pick;
+    psfs decode_pick;
 
   public:
     Overseer() {
         // Create a jit function that will transform the id. This is scheme that
         // I devised to see it in C code see norg files
-        jit_node_t *in;
-
         init_jit(NULL);
-        _jit = jit_new_state();
+        jit1 = jit_new_state();
+        jit2 = jit_new_state();
+        jit3 = jit_new_state();
 
-        jit_prolog();
-        in = jit_arg();
-        jit_getarg(JIT_R0, in);
+        _jit_prolog(jit1);
+        _jit_getarg_l(jit1, _RAX, _jit_arg(jit1, jit_code_arg_l));
         // res = 0
-        jit_xorr(JIT_R2, JIT_R2, JIT_R2);
+        _jit_new_node_www(jit1, jit_code_xorr, _R11, _R11, _R11);
 
         // res |= id << 60;
-        jit_lshi(JIT_R1, JIT_R0, 60);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_lshi, _R10, _RAX, 60);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
         // res |= id >> 60;
-        jit_lroti(JIT_R1, JIT_R0, 4);
-        jit_andi(JIT_R1, JIT_R1, 0xF);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_lroti, _R10, _RAX, 4);
+        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0xF);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
         // res |= ((id >> 4 & 0xFF) ^ (((id & 0xF) << 4) | (id >> 60 & 0xF))) <<
         // 4;
-        jit_rshi(JIT_R1, JIT_R0, 4);
-        jit_andi(JIT_V1, JIT_R1, 0xFF);
+        _jit_new_node_www(jit1, jit_code_rshi, _R10, _RAX, 4);
+        _jit_new_node_www(jit1, jit_code_andi, _R13, _R10, 0xFF);
         //
-        jit_andi(JIT_V2, JIT_R0, 0xF);
-        jit_lshi(JIT_V2, JIT_V2, 4);
+        _jit_new_node_www(jit1, jit_code_andi, _R14, _RAX, 0xF);
+        _jit_new_node_www(jit1, jit_code_lshi, _R14, _R14, 4);
         //
-        jit_lroti(JIT_R1, JIT_R0, 4);
-        jit_andi(JIT_R1, JIT_R1, 0xF);
-        jit_orr(JIT_R1, JIT_V2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_lroti, _R10, _RAX, 4);
+        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0xF);
+        _jit_new_node_www(jit1, jit_code_orr, _R10, _R14, _R10);
         //
-        jit_xorr(JIT_R1, JIT_V1, JIT_R1);
-        jit_lshi(JIT_R1, JIT_R1, 4);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_xorr, _R10, _R13, _R10);
+        _jit_new_node_www(jit1, jit_code_lshi, _R10, _R10, 4);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
         // res |= (id << 44 & 0x0F00000000000000);
-        jit_lshi(JIT_R1, JIT_R0, 44);
-        jit_andi(JIT_R1, JIT_R1, 0x0F00000000000000);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_lshi, _R10, _RAX, 44);
+        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0x0F00000000000000);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
         // res |= (id >> 44 & 0x000000000000F000);
-        jit_lroti(JIT_R1, JIT_R0, 20);
-        jit_andi(JIT_R1, JIT_R1, 0x000000000000F000);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_lroti, _R10, _RAX, 20);
+        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0x000000000000F000);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
         // ulong f = (id >> 16 ^ id >> 24) & 0xFF;
         // res |= ((f ^ id >> 24) & 0xFF) << 24 | f << 16;
-        jit_rshi(JIT_V1, JIT_R0, 16);
-        jit_andi(JIT_V1, JIT_V1, 0xFF);
-        jit_rshi(JIT_V2, JIT_R0, 24);
-        jit_andi(JIT_V2, JIT_V2, 0xFF);
-        jit_xorr(JIT_R1, JIT_V1, JIT_V2);
+        _jit_new_node_www(jit1, jit_code_rshi, _R13, _RAX, 16);
+        _jit_new_node_www(jit1, jit_code_andi, _R13, _R13, 0xFF);
+        _jit_new_node_www(jit1, jit_code_rshi, _R14, _RAX, 24);
+        _jit_new_node_www(jit1, jit_code_andi, _R14, _R14, 0xFF);
+        _jit_new_node_www(jit1, jit_code_xorr, _R10, _R13, _R14);
         //
-        jit_rshi(JIT_V1, JIT_R0, 24);
-        jit_andi(JIT_V1, JIT_V1, 0xFF);
-        jit_xorr(JIT_V1, JIT_R1, JIT_V1);
-        jit_lshi(JIT_V1, JIT_V1, 24);
-        jit_lshi(JIT_R1, JIT_R1, 16);
-        jit_orr(JIT_R1, JIT_V1, JIT_R1);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_rshi, _R13, _RAX, 24);
+        _jit_new_node_www(jit1, jit_code_andi, _R13, _R13, 0xFF);
+        _jit_new_node_www(jit1, jit_code_xorr, _R13, _R10, _R13);
+        _jit_new_node_www(jit1, jit_code_lshi, _R13, _R13, 24);
+        _jit_new_node_www(jit1, jit_code_lshi, _R10, _R10, 16);
+        _jit_new_node_www(jit1, jit_code_orr, _R10, _R13, _R10);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
         // res |= (id ^ 0x00FF00FF00000000) & 0x00FF00FF00000000;
-        jit_xori(JIT_R1, JIT_R0, 0x00FF00FF00000000);
-        jit_andi(JIT_R1, JIT_R1, 0x00FF00FF00000000);
-        jit_orr(JIT_R2, JIT_R2, JIT_R1);
+        _jit_new_node_www(jit1, jit_code_xori, _R10, _RAX, 0x00FF00FF00000000);
+        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0x00FF00FF00000000);
+        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
 
-        jit_retr(JIT_R2); /*      retr   R2           */
+        _jit_retr(jit1, _R11, jit_code_retr_l); /*      retr   R2           */
 
-        transform_id = (pulful)jit_emit();
-        jit_clear_state();
+        transform_id = (pulful)_jit_emit(jit1);
+        _jit_clear_state(jit1);
 
-        /* call the generated code, passing 5 as an argument */
+        // pick encode
+        _jit_prolog(jit2);
+        _jit_getarg_l(jit2, _RAX, _jit_arg(jit2, jit_code_arg_l));
+        // 1) <<1
+        _jit_new_node_www(jit2, jit_code_lshi, _RAX, _RAX, 1);
+        // 2) copy bit 1 and 2 to 2 and 3
+        _jit_new_node_www(jit2, jit_code_andi, _R10, _RAX, 6);
+        _jit_new_node_www(jit2, jit_code_ori, _RAX, _RAX, 12);
+        _jit_new_node_www(jit2, jit_code_lshi, _R10, _R10, 1);
+        _jit_new_node_www(jit2, jit_code_ori, _R10, _R10, 3);
+        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R10);
+        // 3) nand 2 and 3 and and with rest
+        _jit_new_node_www(jit2, jit_code_andi, _R10, _RAX, 8);
+        _jit_new_node_www(jit2, jit_code_andi, _R11, _RAX, 4);
+        _jit_new_node_www(jit2, jit_code_lshi, _R11, _R11, 1);
+        // for 0, nor
+        _jit_new_node_www(jit2, jit_code_orr, _RBX, _R11, _R10);
+        _jit_new_node_www(jit2, jit_code_xori, _RBX, _RBX, 8);
+        _jit_new_node_www(jit2, jit_code_rroti, _RBX, _RBX, 3);
+        // nand = and+xor
+        _jit_new_node_www(jit2, jit_code_andr, _R11, _R10, _R11);
+        _jit_new_node_www(jit2, jit_code_xori, _R11, _R11, 8);
+        //
+        _jit_new_node_www(jit2, jit_code_ori, _R11, _R11, 65527);
+        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R11);
+        _jit_new_node_www(jit2, jit_code_rshi, _R11, _R11, 1);
+        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R11);
+        _jit_new_node_www(jit2, jit_code_rshi, _R11, _R11, 1);
+        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R11);
+        _jit_new_node_www(jit2, jit_code_orr, _RAX, _RAX, _RBX);
+        // set 7thbit
+        _jit_new_node_www(jit2, jit_code_ori, _RAX, _RAX, 128);
+        _jit_retr(jit2, _R11, jit_code_retr_l);
+
+        encode_pick = (psfs)_jit_emit(jit2);
+        _jit_clear_state(jit2);
+
+        // pick decode
+        _jit_prolog(jit3);
+        _jit_getarg_l(jit3, _RAX, _jit_arg(jit3, jit_code_arg_l));
+
+        _jit_new_node_ww(jit3, jit_code_ctzr, _RAX, _RAX);
+        _jit_new_node_ww(jit3, jit_code_popcntr, _RAX, _RAX);
+
+        _jit_retr(jit3, _RAX, jit_code_retr_l);
+
+        decode_pick = (psfs)_jit_emit(jit3);
+        _jit_clear_state(jit3);
     }
     ~Overseer() {
-        jit_destroy_state();
+        _jit_destroy_state(jit1);
+        _jit_destroy_state(jit2);
+        _jit_destroy_state(jit3);
         finish_jit();
     }
     template <typename T> DummyHead<T> *create_head(bool is_obj) {

@@ -209,6 +209,7 @@ LDADD =	\
 	../geometry/libGeometry.la	\
 	../mediafile/libMediaFile.la	\
 	../common/libCommon.la		\
+    /usr/local/lib/liblightning.a \
 	$(LIBCARES)			\
 	$(LIBREGEX)			\
 	$(LIBZ)				\

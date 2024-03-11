@@ -16,6 +16,8 @@
 // system headers
 #include <math.h>
 #include <stdio.h>
+// TODO: remove
+#include <bitset>
 
 // local implementation headers
 #include "Pack.h"
@@ -42,14 +44,28 @@ PlayerState::PlayerState()
     // pos[1] = SplitFloat(0.0f);
     // pos[2] = SplitFloat(0.0f);
     pos[0] = pos[1] = pos[2] = 0.0f;
-    XOR<int> x = 0;
-    printf("XOR: %d", x.val());
-    x++;
-    printf("XOR: %d", x.val());
-    XOR<float> y = 0.0f;
-    printf("XOR: %f", y.val());
-    x++;
-    printf("XOR: %f", y.val());
+    // XOR<int> x = 0;
+    // printf("XOR: %d\n", x.val());
+    // x++;
+    // printf("XOR: %d\n", x.val());
+    // XOR<float> y = 0.0f;
+    // printf("XOR: %f\n", y.val());
+    // x++;
+    // printf("XOR: %f\n", y.val());
+
+    // ProtectedObj<TEST> *p = new ProtectedObj<TEST>();
+    // p->val = 5;
+    // p->val + 5;
+    // printf("dot: %d\n", p->val);
+    // delete p;
+
+    // TEST2 t{};
+    // int i = 0;
+    // t = t + 1;
+    // i = t;
+    // printf("TEST2: %d\n", t);
+    // printf("TEST2: %d\n", i);
+    // printf("TEST2: %d\n", t);
 
     // ProtectedObj<TEST> p;
     // printf("dot2: %d\n", p.dot().val.val());

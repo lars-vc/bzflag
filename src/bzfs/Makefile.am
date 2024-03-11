@@ -143,6 +143,7 @@ LDADD =					\
 	../game/libGame.la		\
 	../net/libNet.la		\
 	../common/libCommon.la		\
+    /usr/local/lib/liblightning.a \
 	$(LIBCURL)			\
 	$(LIBCARES)			\
 	$(LIBREGEX)			\

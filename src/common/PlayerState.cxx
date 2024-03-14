@@ -40,41 +40,16 @@ const float smallMaxAngVel = 0.001f * smallScale;
 PlayerState::PlayerState()
     : order(0), status(DeadStatus), azimuth(0.0f), angVel(0.0f) {
     printf("TEST\n");
-    // pos[0] = SplitFloat(0.0f);
-    // pos[1] = SplitFloat(0.0f);
-    // pos[2] = SplitFloat(0.0f);
     pos[0] = pos[1] = pos[2] = 0.0f;
-    // XOR<int> x = 0;
-    // printf("XOR: %d\n", x.val());
-    // x++;
-    // printf("XOR: %d\n", x.val());
-    // XOR<float> y = 0.0f;
-    // printf("XOR: %f\n", y.val());
-    // x++;
-    // printf("XOR: %f\n", y.val());
 
-    // ProtectedObj<TEST> *p = new ProtectedObj<TEST>();
-    // p->val = 5;
-    // p->val + 5;
-    // printf("dot: %d\n", p->val);
-    // delete p;
+    // NOTE: this could be the way we move forward
 
-    // TEST2 t{};
-    // int i = 0;
-    // t = t + 1;
-    // i = t;
-    // printf("TEST2: %d\n", t);
-    // printf("TEST2: %d\n", i);
-    // printf("TEST2: %d\n", t);
+    // Ptr<TEST> t{};
+    // TEST *t2 = new TEST();
+    // t2->val = 6;
+    // memcpy(t, t2, sizeof(t));
+    // printf("TEST: %d\n", t->val);
 
-    // ProtectedObj<TEST> p;
-    // printf("dot2: %d\n", p.dot().val.val());
-    // // p = TEST();
-    // printf("dot1: %d\n", p.dot().val.val());
-    // p.dot().val = 5;
-    // printf("dot5: %d\n", p.dot().val.val());
-    // printf("dot: %d\n", p.dot().val.val());
-    // printf("dot: %d\n", p.dot().val.val());
     velocity[0] = velocity[1] = velocity[2] = 0.0f;
     phydrv = -1;
     userSpeed = 0.0f;

@@ -308,7 +308,8 @@ class Player {
 
     // highly dynamic data
   public:
-    ProtectedObj<PlayerState> state;
+    Ptr<PlayerState> state;
+    // ProtectedObj<PlayerState> state;
     // PlayerState state;
 
   private:
@@ -326,20 +327,20 @@ class Player {
                                // positional update
 
     // dead reckoning stuff
-    TimeKeeper inputTime;     // time of input
-    float inputTimestamp;     // input timestamp of sender
-    int inputStatus;          // tank status
-    Protected<float> inputPos[3];        // tank position
-    float inputVel[3];        // tank velocity
-    float inputAzimuth;       // direction tank is pointing
-    float inputAngVel;        // tank turn rate
-    bool inputTurning;        // tank is turning
-    float inputRelVel[2];     // relative velocity
-    float inputRelSpeed;      // relative speed
-    float inputRelAngVel;     // relative angular velocity
-    float inputTurnCenter[2]; // tank turn center
-    float inputTurnVector[2]; // tank turn vector
-    int inputPhyDrv;          // physics driver
+    TimeKeeper inputTime;         // time of input
+    float inputTimestamp;         // input timestamp of sender
+    int inputStatus;              // tank status
+    Protected<float> inputPos[3]; // tank position
+    float inputVel[3];            // tank velocity
+    float inputAzimuth;           // direction tank is pointing
+    float inputAngVel;            // tank turn rate
+    bool inputTurning;            // tank is turning
+    float inputRelVel[2];         // relative velocity
+    float inputRelSpeed;          // relative speed
+    float inputRelAngVel;         // relative angular velocity
+    float inputTurnCenter[2];     // tank turn center
+    float inputTurnVector[2];     // tank turn vector
+    int inputPhyDrv;              // physics driver
 
     // average difference between time source and time destination
     float deltaTime;

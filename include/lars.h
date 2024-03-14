@@ -820,8 +820,6 @@ class Overseer {
     }
 
     void set_el(unsigned long id, short pick) {
-        printf("pick=%d\n", pick);
-        printf("enck=%d\n", encode_pick(pick));
         catalog[transform_id(id)] = encode_pick(pick);
     }
 
@@ -1019,6 +1017,7 @@ template <typename T> class Protected {
   private:
     DummyHead<T> *head;
     T deobfuscate() const { return *overseer->resolve_head_val(head); }
+    T *deobfuscate_ptr() const { return overseer->resolve_head_val(head); }
     void obfuscate(T val) { overseer->change_value(head, val); }
 
   public:
@@ -1072,6 +1071,11 @@ template <typename T> class Protected {
     T val() { return deobfuscate(); }
     const T val() const { return deobfuscate(); }
     void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
+
+    // NOTE: Only use this when you know what you are doing, as this could
+    // negate the usefulness of the protection
+    T &ref() { return *deobfuscate_ptr(); }
+    T &operator*() { return *deobfuscate_ptr(); }
 };
 
 template <typename T> class ProtectedObj {
@@ -1079,10 +1083,14 @@ template <typename T> class ProtectedObj {
     DummyHead<T> *head;
     T &deobfuscate() const { return *overseer->resolve_head_val(head); }
     void obfuscate(T val) { overseer->change_value(head, val); }
+    void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
 
   public:
     ProtectedObj() { head = overseer->create_head<T>(true); }
-    // ProtectedObj(T val) { path = overseer->create_path(val); }
+    ProtectedObj(T val) {
+        head = overseer->create_head<T>(true);
+        obfuscate(val);
+    }
     ProtectedObj(ProtectedObj const &p) {
         head = overseer->create_head<T>();
         change_value(head, p.val());
@@ -1097,6 +1105,10 @@ template <typename T> class ProtectedObj {
     ProtectedObj &operator=(T val) {
         // TODO: This doesn't not work for objects
         printf("LARS ERR\n");
+        obfuscate(val);
+        return *this;
+    }
+    ProtectedObj &operator=(T *val) {
         obfuscate(val);
         return *this;
     }
@@ -1140,11 +1152,63 @@ template <typename T> class ProtectedObj {
     const T val() const { return deobfuscate(); }
     void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
 };
+template <typename T> class Ptr {
+  private:
+    DummyHead<T> *head;
+    T &deobfuscate() const { return *overseer->resolve_head_val(head); }
+    T *deobfuscate_ptr() const { return overseer->resolve_head_val(head); }
+    void obfuscate(T val) { overseer->change_value(head, val); }
+    void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
+
+  public:
+    Ptr() { head = overseer->create_head<T>(true); }
+    Ptr(Ptr &&) = delete;
+    Ptr &operator=(Ptr &&) = delete;
+    Ptr(T val) {
+        head = overseer->create_head<T>(true);
+        obfuscate(val);
+    }
+    Ptr(Ptr const &p) {
+        head = overseer->create_head<T>();
+        change_value(head, p.val());
+    }
+    // TODO:
+    // Ptr(Ptr &&p) {
+    //     printf("move construct\n");
+    //     path = std::move(p.path);
+    // }
+    ~Ptr() { overseer->free_head(head); }
+
+    Ptr &operator=(T val) {
+        // TODO: This doesn't not work for objects
+        printf("LARS ERR\n");
+        obfuscate(val);
+        return *this;
+    }
+    Ptr &operator=(T *val) {
+        obfuscate(val);
+        return *this;
+    }
+    Ptr &operator=(Ptr &val) { return operator=(val.deobfuscate()); }
+    // TODO:
+    // Ptr &operator=(Ptr &&val) {
+    //     path = std::move(val.path);
+    //     printf("TODO MOVE assignment\n");
+    //     return *this;
+    // }
+    // T &dot() { return deobfuscate(); }
+    // const T &dot() const { return deobfuscate(); }
+    // TODO: test this
+    T *operator->() { return deobfuscate_ptr(); }
+
+    T &operator*() { return deobfuscate(); }
+    operator T *() { return deobfuscate_ptr(); }
+};
 
 class TEST {
   public:
     TEST() : val(2) {}
-    Protected<int> val = 0;
+    int val = 0;
 } typedef TEST;
 
 class TEST2 {

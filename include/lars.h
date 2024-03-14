@@ -1200,6 +1200,7 @@ template <typename T> class Ptr {
     // const T &dot() const { return deobfuscate(); }
     // TODO: test this
     T *operator->() { return deobfuscate_ptr(); }
+    const T *operator->() const { return deobfuscate_ptr(); }
 
     T &operator*() { return deobfuscate(); }
     operator T *() { return deobfuscate_ptr(); }

@@ -377,30 +377,30 @@ inline PlayerType Player::getPlayerType() const { return type; }
 
 inline FlagType *Player::getFlag() const { return flagType; }
 
-inline long Player::getOrder() const { return state.dot().order; }
+inline long Player::getOrder() const { return state->order; }
 
-inline short Player::getStatus() const { return state.dot().status; }
+inline short Player::getStatus() const { return state->status; }
 
-inline Protected<float> *Player::getPosition() { return state.dot().pos; }
+inline Protected<float> *Player::getPosition() { return state->pos; }
 inline const Protected<float> *Player::getPosition() const {
-    return state.dot().pos;
+    return state->pos;
 }
 
-inline float Player::getAngle() const { return state.dot().azimuth; }
+inline float Player::getAngle() const { return state->azimuth; }
 
 inline const float *Player::getDimensions() const { return dimensions; }
 
 inline const float *Player::getForward() const { return forward; }
 
-inline const float *Player::getVelocity() const { return state.dot().velocity; }
+inline const float *Player::getVelocity() const { return state->velocity; }
 
 inline const float *Player::getApparentVelocity() const {
     return apparentVelocity;
 }
 
-inline float Player::getAngularVelocity() const { return state.dot().angVel; }
+inline float Player::getAngularVelocity() const { return state->angVel; }
 
-inline int Player::getPhysicsDriver() const { return state.dot().phydrv; }
+inline int Player::getPhysicsDriver() const { return state->phydrv; }
 
 inline short Player::getWins() const { return wins; }
 
@@ -437,11 +437,11 @@ inline const ShotStatistics *Player::getShotStatistics() const {
 }
 
 inline bool Player::isAlive() const {
-    return (state.dot().status & short(PlayerState::Alive)) != 0;
+    return (state->status & short(PlayerState::Alive)) != 0;
 }
 
 inline bool Player::isPaused() const {
-    return (state.dot().status & short(PlayerState::Paused)) != 0;
+    return (state->status & short(PlayerState::Paused)) != 0;
 }
 
 inline bool Player::getPausedMessageState(void) const {
@@ -453,19 +453,19 @@ inline bool Player::isAutoPilot() const { return autoPilot; }
 inline void Player::setAutoPilot(bool autopilot) { autoPilot = autopilot; }
 
 inline bool Player::isFalling() const {
-    return (state.dot().status & short(PlayerState::Falling)) != 0;
+    return (state->status & short(PlayerState::Falling)) != 0;
 }
 
 inline bool Player::isFlagActive() const {
-    return (state.dot().status & short(PlayerState::FlagActive)) != 0;
+    return (state->status & short(PlayerState::FlagActive)) != 0;
 }
 
 inline bool Player::isTeleporting() const {
-    return (state.dot().status & short(PlayerState::Teleporting)) != 0;
+    return (state->status & short(PlayerState::Teleporting)) != 0;
 }
 
 inline bool Player::isExploding() const {
-    return (state.dot().status & short(PlayerState::Exploding)) != 0;
+    return (state->status & short(PlayerState::Exploding)) != 0;
 }
 
 inline bool Player::isPhantomZoned() const {
@@ -473,7 +473,7 @@ inline bool Player::isPhantomZoned() const {
 }
 
 inline bool Player::isCrossingWall() const {
-    return (state.dot().status & short(PlayerState::CrossingWall)) != 0;
+    return (state->status & short(PlayerState::CrossingWall)) != 0;
 }
 
 inline bool Player::isNotResponding() const { return notResponding; }
@@ -510,10 +510,10 @@ inline void Player::addHitToStats(FlagType *flag) {
 
 inline void *Player::pack(void *buf, uint16_t &code) {
     setDeadReckoning();
-    return state.dot().pack(buf, code);
+    return state->pack(buf, code);
 }
 
-inline void Player::setZpos(float z) { state.dot().pos[2] = z; }
+inline void Player::setZpos(float z) { state->pos[2] = z; }
 
 #endif /* __PLAYER_H__ */
 

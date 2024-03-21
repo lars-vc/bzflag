@@ -14,6 +14,9 @@ extern "C" {
 #define PERF_MODE 0
 #define TTLU_MAX 240
 #define START_LEN 3
+#define MAX_LEN 9
+#define LOGGING true
+
 typedef ulong (*pulful)(ulong);
 typedef short (*psfs)(short);
 static jit_state_t *jit1;
@@ -504,6 +507,12 @@ template <typename T> class XOR {
     template <typename C> XOR<T> operator/(XOR<C> comp) {
         return XOR<T>(deobfuscate() / comp.val());
     }
+    template <typename C> XOR<T> operator*(C comp) {
+        return XOR<T>(deobfuscate() * comp);
+    }
+    template <typename C> XOR<T> operator*(XOR<C> comp) {
+        return XOR<T>(deobfuscate() * comp.val());
+    }
     // operator bool() const { return deobfuscate() != 0; }
     // Maybe this can work?
     // operator int() const { return deobfuscate(); }
@@ -536,11 +545,17 @@ template <typename T> struct Dummy {
 template <typename T> struct DummyHead {
     Dummy<T> *d;
     // XOR these
-    XOR<unsigned long> ttlu;
-    XOR<unsigned short> ttlu_max;
-    XOR<unsigned long> times_updated;
+    XOR<ulong> ttlu;
+    XOR<uint> ttlu_max;
+    XOR<ulong> times_updated;
+    XOR<uint> max_len;
 
     bool is_obj;
+};
+
+template <typename T> struct ChainOptions {
+    ushort max_chain_length = MAX_LEN;
+    uint max_time_til_update = TTLU_MAX;
 };
 
 class Overseer {
@@ -582,7 +597,6 @@ class Overseer {
             free_path_rec(d->d2, id);
             free_path_rec(d->d3, id);
         } else {
-            // TODO: LARS this leaks a bit cause we don't free the correct end
             if (!PERF_MODE) {
                 // if (obj) {
                 //     delete d->tail->val;
@@ -608,25 +622,27 @@ class Overseer {
             head->ttlu = time;
             head->times_updated += 1;
             // Make chain longer over time
-            // every 10 updated increase to a max len of 10
-            printf("Updated path: id=%lu", head->d->id);
+            // every 10th updated increase to a max len of 10
+            if (LOGGING)
+                printf("Updated path: id=%lu", head->d->id);
             if (head->times_updated % 10 == 0 &&
-                head->times_updated + START_LEN * 10 < 100) {
+                head->times_updated + START_LEN * 10 <= head->max_len * 10) {
                 // TODO: decreasing lengths
                 change_chain_len(head->d,
                                  (head->times_updated / 10) + START_LEN);
-                printf(" and increased length to %ld",
-                       (head->times_updated.val() / 10) + START_LEN);
+                if (LOGGING)
+                    printf(" and increased length to %ld",
+                           (head->times_updated.val() / 10) + START_LEN);
             }
-            printf("\n");
-
-            printf("list: ");
-            ListNode<unsigned long> *curr = due_for_path_update.head;
-            while (curr != nullptr) {
-                printf("id=%lu ", curr->val);
-                curr = curr->next;
+            if (LOGGING) {
+                printf("\nlist: ");
+                ListNode<unsigned long> *curr = due_for_path_update.head;
+                while (curr != nullptr) {
+                    printf("id=%lu ", curr->val);
+                    curr = curr->next;
+                }
+                printf("\n");
             }
-            printf("\n");
         }
     }
 
@@ -652,7 +668,8 @@ class Overseer {
                 d->tail->val = (T *)malloc(sizeof(T));
                 return;
             } else {
-                printf("ERROR: currlen > len, %d, %d\n", currlen, len);
+                if (LOGGING)
+                    printf("ERROR: currlen > len, %d, %d\n", currlen, len);
                 return;
             }
         }
@@ -680,8 +697,9 @@ class Overseer {
         T *valptr = new T();
         update_path_dummy(d, valptr);
         paths_created++;
-        printf("Created path: id=%lu name=%s count=%lu\n", d->id,
-               typeid(*valptr).name(), paths_created);
+        if (LOGGING)
+            printf("Created path: id=%lu name=%s count=%lu\n", d->id,
+                   typeid(*valptr).name(), paths_created);
         // we do new and free to avoid calling the destructor of T which would
         // kill the protected<float>s it possesses
         // free(valptr);
@@ -691,17 +709,18 @@ class Overseer {
     }
 
     template <typename T> void change_value_dummy(Dummy<T> *d, T val) {
-        // *resolve_dummy(d)->tail->val = val;
         memcpy(resolve_dummy(d)->tail->val, &val, sizeof(T));
     }
 
     template <typename T> void free_path(Dummy<T> *d) {
-        printf("Freed reg:        id=%lu\n", d->id);
+        if (LOGGING)
+            printf("Freed reg:        id=%lu\n", d->id);
         free_path_rec(d, -1);
     }
 
     template <typename T> void free_path_obj(Dummy<T> *d) {
-        printf("Freed obj:        id=%lu\n", d->id);
+        if (LOGGING)
+            printf("Freed obj:        id=%lu\n", d->id);
         // call destructor of the obj
         Dummy<T> *special = resolve_dummy(d);
         int id = special->id;
@@ -968,11 +987,16 @@ class Overseer {
         _jit_destroy_state(jit3);
         finish_jit();
     }
-    template <typename T> DummyHead<T> *create_head(bool is_obj) {
+
+    template <typename T>
+    DummyHead<T> *create_head(ChainOptions<T> options, bool is_obj) {
         DummyHead<T> *head = new DummyHead<T>();
-        head->ttlu_max = TTLU_MAX;
+        head->ttlu_max = options.max_time_til_update;
         head->times_updated = 0;
         head->is_obj = is_obj;
+        head->max_len = options.max_chain_length > START_LEN
+                            ? options.max_chain_length
+                            : START_LEN;
         head->d = create_path<T>(START_LEN);
         return head;
     }
@@ -1021,14 +1045,17 @@ template <typename T> class Protected {
     void obfuscate(T val) { overseer->change_value(head, val); }
 
   public:
-    Protected() { head = overseer->create_head<T>(false); }
-    Protected(T val) {
-        head = overseer->create_head<T>(false);
-        overseer->change_value(head, val);
+    // Protected() { head = overseer->create_head<T>(MAX_LEN, false); }
+    // Protected(T val) {
+    //     head = overseer->create_head<T>(MAX_LEN, false);
+    //     overseer->change_value(head, val);
+    // }
+    Protected(ChainOptions<T> options = ChainOptions<T>()) {
+        head = overseer->create_head<T>(options, false);
     }
     Protected(Protected<T> const &p) {
-        head = overseer->create_head<T>(false);
-        overseer->change_value(head, p.val());
+        head = overseer->create_head<T>(ChainOptions<T>(), false);
+        obfuscate(p.val());
     }
     // TODO: LARS
     // Protected(Protected &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
@@ -1046,19 +1073,19 @@ template <typename T> class Protected {
     //     printf("TODO MOVE assignment\n");
     //     return nullptr;
     // }
-    Protected operator+(Protected add) {
-        T val = deobfuscate();
-        T valadd = add.deobfuscate();
-        Protected p(val + valadd);
-        return p;
-    }
-    Protected operator+(T add) {
-        T val = deobfuscate();
-        Protected p(val + add);
-        return p;
-    }
+    // Protected operator+(Protected add) {
+    //     T val = deobfuscate();
+    //     T valadd = add.deobfuscate();
+    //     Protected p(val + valadd);
+    //     return p;
+    // }
+    // Protected operator+(T add) {
+    //     T val = deobfuscate();
+    //     Protected p(val + add);
+    //     return p;
+    // }
     Protected &operator+=(T add) {
-        obfuscateAdd(add);
+        obfuscate(deobfuscate() + add);
         return *this;
     }
     Protected &operator++(int) { return this->operator+=(1); }
@@ -1070,88 +1097,95 @@ template <typename T> class Protected {
 
     T val() { return deobfuscate(); }
     const T val() const { return deobfuscate(); }
-    void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
 
     // NOTE: Only use this when you know what you are doing, as this could
-    // negate the usefulness of the protection
-    T &ref() { return *deobfuscate_ptr(); }
-    T &operator*() { return *deobfuscate_ptr(); }
+    // induce undefined behavior
+    T *ref() { return deobfuscate_ptr(); }
+    T *operator&() { return ref(); }
+    T *ref() const { return deobfuscate_ptr(); }
+    T *operator&() const { return ref(); }
+
+    operator T() { return deobfuscate(); }
 };
 
-template <typename T> class ProtectedObj {
-  private:
-    DummyHead<T> *head;
-    T &deobfuscate() const { return *overseer->resolve_head_val(head); }
-    void obfuscate(T val) { overseer->change_value(head, val); }
-    void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
-
-  public:
-    ProtectedObj() { head = overseer->create_head<T>(true); }
-    ProtectedObj(T val) {
-        head = overseer->create_head<T>(true);
-        obfuscate(val);
-    }
-    ProtectedObj(ProtectedObj const &p) {
-        head = overseer->create_head<T>();
-        change_value(head, p.val());
-    }
-    // TODO:
-    // ProtectedObj(ProtectedObj &&p) {
-    //     printf("move construct\n");
-    //     path = std::move(p.path);
-    // }
-    ~ProtectedObj() { overseer->free_head(head); }
-
-    ProtectedObj &operator=(T val) {
-        // TODO: This doesn't not work for objects
-        printf("LARS ERR\n");
-        obfuscate(val);
-        return *this;
-    }
-    ProtectedObj &operator=(T *val) {
-        obfuscate(val);
-        return *this;
-    }
-    ProtectedObj &operator=(ProtectedObj &val) {
-        return operator=(val.deobfuscate());
-    }
-    // TODO:
-    // ProtectedObj &operator=(ProtectedObj &&val) {
-    //     path = std::move(val.path);
-    //     printf("TODO MOVE assignment\n");
-    //     return *this;
-    // }
-    T &dot() { return deobfuscate(); }
-    const T &dot() const { return deobfuscate(); }
-    // TODO: test this
-    T &operator->() { return dot(); }
-
-    // ProtectedObj operator+(Protected add) {
-    //     T val = deobfuscate();
-    //     T valadd = add.deobfuscate();
-    //     ProtectedObj p(val + valadd);
-    //     return p;
-    // }
-    // ProtectedObj operator+(T add) {
-    //     T val = deobfuscate();
-    //     ProtectedObj p(val + add);
-    //     return p;
-    // }
-    // ProtectedObj &operator+=(T add) {
-    //     obfuscateAdd(add);
-    //     return *this;
-    // }
-    // ProtectedObj &operator++(int) { return this->operator+=(1); }
-    // ProtectedObj &operator-=(T add) { return this->operator+=(-add); }
-    // ProtectedObj &operator--(int) { return this->operator-=(1); }
-    // operator bool() const { return deobfuscate() != 0; }
-    // Maybe this can work?
-    // operator int() const { return deobfuscate(); }
-
-    T val() { return deobfuscate(); }
-    const T val() const { return deobfuscate(); }
-    void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
-};
+// template <typename T> class ProtectedObj {
+//   private:
+//     DummyHead<T> *head;
+//     T &deobfuscate() const { return *overseer->resolve_head_val(head); }
+//     void obfuscate(T val) { overseer->change_value(head, val); }
+//     void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
+//
+//   public:
+//     ProtectedObj() { head = overseer->create_head<T>(MAX_LEN, true); }
+//     ProtectedObj(T val) {
+//         head = overseer->create_head<T>(MAX_LEN, true);
+//         obfuscate(val);
+//     }
+//     ProtectedObj(T val, ushort max_len) {
+//         head = overseer->create_head<T>(max_len, true);
+//         obfuscate(val);
+//     }
+//     ProtectedObj(ProtectedObj const &p) {
+//         head = overseer->create_head<T>(MAX_LEN, true);
+//         change_value(head, p.val());
+//     }
+//     // TODO:
+//     // ProtectedObj(ProtectedObj &&p) {
+//     //     printf("move construct\n");
+//     //     path = std::move(p.path);
+//     // }
+//     ~ProtectedObj() { overseer->free_head(head); }
+//
+//     ProtectedObj &operator=(T val) {
+//         // TODO: This doesn't not work for objects
+//         printf("LARS ERR\n");
+//         obfuscate(val);
+//         return *this;
+//     }
+//     ProtectedObj &operator=(T *val) {
+//         obfuscate(val);
+//         return *this;
+//     }
+//     ProtectedObj &operator=(ProtectedObj &val) {
+//         return operator=(val.deobfuscate());
+//     }
+//     // TODO:
+//     // ProtectedObj &operator=(ProtectedObj &&val) {
+//     //     path = std::move(val.path);
+//     //     printf("TODO MOVE assignment\n");
+//     //     return *this;
+//     // }
+//     T &dot() { return deobfuscate(); }
+//     const T &dot() const { return deobfuscate(); }
+//     // TODO: test this
+//     T &operator->() { return dot(); }
+//
+//     // ProtectedObj operator+(Protected add) {
+//     //     T val = deobfuscate();
+//     //     T valadd = add.deobfuscate();
+//     //     ProtectedObj p(val + valadd);
+//     //     return p;
+//     // }
+//     // ProtectedObj operator+(T add) {
+//     //     T val = deobfuscate();
+//     //     ProtectedObj p(val + add);
+//     //     return p;
+//     // }
+//     // ProtectedObj &operator+=(T add) {
+//     //     obfuscateAdd(add);
+//     //     return *this;
+//     // }
+//     // ProtectedObj &operator++(int) { return this->operator+=(1); }
+//     // ProtectedObj &operator-=(T add) { return this->operator+=(-add); }
+//     // ProtectedObj &operator--(int) { return this->operator-=(1); }
+//     // operator bool() const { return deobfuscate() != 0; }
+//     // Maybe this can work?
+//     // operator int() const { return deobfuscate(); }
+//
+//     T val() { return deobfuscate(); }
+//     const T val() const { return deobfuscate(); }
+//     void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
+// };
 template <typename T> class Ptr {
   private:
     DummyHead<T> *head;
@@ -1161,17 +1195,15 @@ template <typename T> class Ptr {
     void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
 
   public:
-    Ptr() { head = overseer->create_head<T>(true); }
-    Ptr(Ptr &&) = delete;
-    Ptr &operator=(Ptr &&) = delete;
-    Ptr(T val) {
-        head = overseer->create_head<T>(true);
-        obfuscate(val);
+    // Ptr() { head = overseer->create_head<T>(MAX_LEN, true); }
+    Ptr(ChainOptions<T> options = ChainOptions<T>()) {
+        head = overseer->create_head<T>(options, true);
     }
     Ptr(Ptr const &p) {
-        head = overseer->create_head<T>();
-        change_value(head, p.val());
+        head = overseer->create_head<T>(MAX_LEN, true);
+        obfuscate(p.val());
     }
+    // Ptr &operator=(Ptr &&) = delete;
     // TODO:
     // Ptr(Ptr &&p) {
     //     printf("move construct\n");
@@ -1198,7 +1230,6 @@ template <typename T> class Ptr {
     // }
     // T &dot() { return deobfuscate(); }
     // const T &dot() const { return deobfuscate(); }
-    // TODO: test this
     T *operator->() { return deobfuscate_ptr(); }
     const T *operator->() const { return deobfuscate_ptr(); }
 
@@ -1226,7 +1257,7 @@ class TEST2 {
 } typedef TEST2;
 
 // protectfunc inline int get_val_lars(ProtectedInt &val) { return val.val(); }
-// inline void set_val_lars(ProtectedInt &val, int set) {
+// template <typename T> inline void set_val_lars(Protected<T> &val, int set) {
 //     printf("set_val_lars: %d, %d\n", val.val(), set);
 //     val = set;
 // }

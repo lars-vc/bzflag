@@ -381,6 +381,15 @@ template <typename T> class List {
             curr = curr->next;
         }
     }
+    void push_back_no_dup(List<T> &list) {
+        ListNode<T> *curr = list.head;
+        while (curr != nullptr) {
+            if (!contains(curr->val)) {
+                push_back(curr->val);
+            }
+            curr = curr->next;
+        }
+    }
 
     T get(int index) {
         if (index == -1) {
@@ -403,6 +412,21 @@ template <typename T> class List {
             tail->next = node;
             tail = node;
         }
+    }
+
+    void print() {
+        printf("list: ");
+        if (head == nullptr) {
+            printf("empty\n");
+            return;
+        }
+        ListNode<unsigned long> *curr = head;
+        while (curr != nullptr) {
+            printf("id=%lu ", curr->val);
+            curr = curr->next;
+        }
+        printf("\n");
+        printf("head=%lu tail=%lu\n", head->val, tail->val);
     }
 
     T pop_back() {
@@ -448,6 +472,9 @@ template <typename T> class List {
                 } else {
                     prev->next = curr->next;
                 }
+                if (curr->next == nullptr) {
+                    tail = prev;
+                }
 
                 ListNode<T> *next = curr->next;
                 delete curr;
@@ -467,6 +494,9 @@ template <typename T> class List {
                     head = curr->next;
                 } else {
                     prev->next = curr->next;
+                }
+                if (curr->next == nullptr) {
+                    tail = prev;
                 }
                 delete curr;
                 return;
@@ -705,7 +735,7 @@ class Overseer {
             head->ttlu = time;
             head->times_updated += 1;
             // add children to update list
-            due_for_path_update.push_back(head->child_ids);
+            due_for_path_update.push_back_no_dup(head->child_ids);
             // Make chain longer over time
             // every 10th updated increase to a max len of 10
             if (LOGGING)
@@ -933,7 +963,7 @@ class Overseer {
     // std::map<unsigned long, short> catalog;
     std::map<unsigned long, short> catalog;
     // update path on next resolve
-    List<unsigned long> due_for_path_update;
+    List<ulong> due_for_path_update;
     unsigned long paths_created = 0;
     unsigned long totalcounter = 0;
     unsigned long alloc_sum = 0;
@@ -1084,6 +1114,7 @@ class Overseer {
                             ? options.max_chain_length
                             : START_LEN;
         head->d = create_path<T>(START_LEN);
+        head->child_ids = List<ulong>();
         if (!id_stack.is_empty()) {
             for (uint i = 0; i < options.amount_children; i++) {
                 head->child_ids.push_back(id_stack.pop_back());
@@ -1105,8 +1136,12 @@ class Overseer {
         // check if dummy is due for chain update
         if (time - head->ttlu >= head->ttlu_max) {
             // don't add if already in list
+            // printf("TEST resolve\n");
+            // due_for_path_update.print();
             if (!due_for_path_update.contains(head->d->id)) {
+                // printf("TEST resolve2\n");
                 due_for_path_update.push_back(head->d->id);
+                // due_for_path_update.print();
             }
         }
         check_and_update_head(head);
@@ -1347,14 +1382,6 @@ class TEST2 {
     }
     TEST2 &operator=(TEST2 &val) { return operator=(val.val); }
 } typedef TEST2;
-
-inline List<const char *> testfunc() {
-    List<const char *> l;
-    l.push_back(typeid(float).name());
-    l.push_back(typeid(float).name());
-    l.push_back(typeid(float).name());
-    return l;
-}
 
 // protectfunc inline int get_val_lars(ProtectedInt &val) { return val.val(); }
 // template <typename T> inline void set_val_lars(Protected<T> &val, int set) {

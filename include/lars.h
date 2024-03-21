@@ -2,7 +2,7 @@
 // #include <algorithm>
 #include <cstdio>
 #include <cstring>
-#include <iostream>
+#include <typeinfo>
 extern "C" {
 #include <lightning.h>
 }
@@ -372,6 +372,28 @@ template <typename T> class List {
         }
     }
 
+    T peek_back() { return tail->val; }
+
+    void push_back(List<T> &list) {
+        ListNode<T> *curr = list.head;
+        while (curr != nullptr) {
+            push_back(curr->val);
+            curr = curr->next;
+        }
+    }
+
+    T get(int index) {
+        if (index == -1) {
+            return tail->val;
+        }
+
+        ListNode<T> *curr = head;
+        for (int i = 0; i < index; i++) {
+            curr = curr->next;
+        }
+        return curr->val;
+    }
+
     void push_back(T val) {
         ListNode<T> *node = new ListNode<T>(val);
         if (head == nullptr) {
@@ -381,6 +403,28 @@ template <typename T> class List {
             tail->next = node;
             tail = node;
         }
+    }
+
+    T pop_back() {
+        if (head == nullptr) {
+            return 0;
+        }
+        ListNode<T> *curr = head;
+        ListNode<T> *prev = nullptr;
+        while (curr->next != nullptr) {
+            prev = curr;
+            curr = curr->next;
+        }
+        T val = curr->val;
+        if (prev == nullptr) {
+            head = nullptr;
+            tail = nullptr;
+        } else {
+            prev->next = nullptr;
+            tail = prev;
+        }
+        delete curr;
+        return val;
     }
 
     bool contains(T val) {
@@ -404,14 +448,44 @@ template <typename T> class List {
                 } else {
                     prev->next = curr->next;
                 }
-                prev = curr;
-                curr = curr->next;
+
+                ListNode<T> *next = curr->next;
                 delete curr;
+                curr = next;
                 continue;
             }
             prev = curr;
             curr = curr->next;
         }
+    }
+    void erase1(T val) {
+        ListNode<T> *curr = head;
+        ListNode<T> *prev = nullptr;
+        while (curr != nullptr) {
+            if (curr->val == val) {
+                if (prev == nullptr) {
+                    head = curr->next;
+                } else {
+                    prev->next = curr->next;
+                }
+                delete curr;
+                return;
+            }
+            prev = curr;
+            curr = curr->next;
+        }
+    }
+
+    bool is_empty() { return head == nullptr; }
+
+    ulong size() {
+        ulong count = 0;
+        ListNode<T> *curr = head;
+        while (curr != nullptr) {
+            count++;
+            curr = curr->next;
+        }
+        return count;
     }
 };
 
@@ -550,12 +624,22 @@ template <typename T> struct DummyHead {
     XOR<ulong> times_updated;
     XOR<uint> max_len;
 
+    List<ulong> child_ids;
     bool is_obj;
 };
 
 template <typename T> struct ChainOptions {
     ushort max_chain_length = MAX_LEN;
     uint max_time_til_update = TTLU_MAX;
+    uint amount_children = 0;
+
+    ChainOptions<T>() {}
+    ChainOptions<T>(ushort max_chain_length,
+                    uint max_time_til_update = TTLU_MAX,
+                    uint amount_children = 0)
+        : max_chain_length(max_chain_length),
+          max_time_til_update(max_time_til_update),
+          amount_children(amount_children) {}
 };
 
 class Overseer {
@@ -616,11 +700,12 @@ class Overseer {
 
     template <typename T> void check_and_update_head(DummyHead<T> *head) {
         if (due_for_path_update.contains(head->d->id)) {
-            update_path_dummy_erase(
-                head->d); //, resolve_dummy(head->d)->tail->val);
+            update_path_dummy_erase(head->d);
             due_for_path_update.erase(head->d->id);
             head->ttlu = time;
             head->times_updated += 1;
+            // add children to update list
+            due_for_path_update.push_back(head->child_ids);
             // Make chain longer over time
             // every 10th updated increase to a max len of 10
             if (LOGGING)
@@ -856,6 +941,7 @@ class Overseer {
     pulful transform_id;
     psfs encode_pick;
     psfs decode_pick;
+    List<ulong> id_stack;
 
   public:
     Overseer() {
@@ -998,6 +1084,12 @@ class Overseer {
                             ? options.max_chain_length
                             : START_LEN;
         head->d = create_path<T>(START_LEN);
+        if (!id_stack.is_empty()) {
+            for (uint i = 0; i < options.amount_children; i++) {
+                head->child_ids.push_back(id_stack.pop_back());
+            }
+        }
+        id_stack.push_back(head->d->id);
         return head;
     }
 
@@ -1255,6 +1347,14 @@ class TEST2 {
     }
     TEST2 &operator=(TEST2 &val) { return operator=(val.val); }
 } typedef TEST2;
+
+inline List<const char *> testfunc() {
+    List<const char *> l;
+    l.push_back(typeid(float).name());
+    l.push_back(typeid(float).name());
+    l.push_back(typeid(float).name());
+    return l;
+}
 
 // protectfunc inline int get_val_lars(ProtectedInt &val) { return val.val(); }
 // template <typename T> inline void set_val_lars(Protected<T> &val, int set) {

@@ -308,7 +308,7 @@ class Player {
 
     // highly dynamic data
   public:
-    Ptr<PlayerState> state;
+    Ptr<PlayerState> state{ChainOptions<PlayerState>{9, 240, 3}};
     // ProtectedObj<PlayerState> state;
     // PlayerState state;
 

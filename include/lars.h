@@ -1,21 +1,21 @@
 #pragma once
-// #include <algorithm>
+#define LOGGING
+#ifdef LOGGING
 #include <cstdio>
-#include <cstring>
 #include <typeinfo>
-extern "C" {
+#endif
+
+extern "C" { // should be statically linked
 #include <lightning.h>
 }
-#include <map>
-#include <stdlib.h>
-#include <unistd.h>
 
-#define protectfunc /*PROTECTOR_FUNCTION_PRIO=5*/
+#include <map>      // could be replaced with own map
+#include <stdlib.h> // needed for rand and malloc
+
 #define PERF_MODE 0
 #define TTLU_MAX 240
 #define START_LEN 3
 #define MAX_LEN 9
-#define LOGGING true
 
 typedef ulong (*pulful)(ulong);
 typedef short (*psfs)(short);
@@ -25,262 +25,6 @@ static jit_state_t *jit3;
 ///////////////////////////////////////////
 // protector
 ///////////////////////////////////////////
-// class ProtectedFloat {
-//   protected:
-//     float unprotected_val = 0.0f;
-//     virtual float deobfuscate() const { return unprotected_val; };
-//     virtual void obfuscate(float val) { unprotected_val = val; }
-//
-//   public:
-//     ProtectedFloat() { obfuscate(0); }
-//     ProtectedFloat(float val) { obfuscate(val); }
-//     virtual ~ProtectedFloat() = default;
-//
-//     // OPERATORS
-//     ProtectedFloat &operator=(float val) {
-//         obfuscate(val);
-//         return *this;
-//     }
-//     ProtectedFloat &operator=(ProtectedFloat val) {
-//         return operator=(val.deobfuscate());
-//     }
-//     ProtectedFloat operator+(ProtectedFloat add) {
-//         float val = deobfuscate();
-//         float valadd = add.deobfuscate();
-//         ProtectedFloat p(val + valadd);
-//         return p;
-//     }
-//     ProtectedFloat operator+(float add) {
-//         float val = deobfuscate();
-//         ProtectedFloat p(val + add);
-//         return p;
-//     }
-//     ProtectedFloat operator-(ProtectedFloat add) {
-//         float val = deobfuscate();
-//         float valadd = add.deobfuscate();
-//         ProtectedFloat p(val - valadd);
-//         return p;
-//     }
-//     ProtectedFloat operator-(float add) {
-//         float val = deobfuscate();
-//         ProtectedFloat p(val - add);
-//         return p;
-//     }
-//     ProtectedFloat &operator+=(float add) {
-//         obfuscateAdd(add);
-//         return *this;
-//     }
-//     ProtectedFloat &operator++(int) { return this->operator+=(1); }
-//     ProtectedFloat &operator-=(float add) { return this->operator+=(-add); }
-//     ProtectedFloat &operator--(int) { return this->operator-=(1); }
-//     bool operator>=(float comp) { return (deobfuscate() >= comp); }
-//     bool operator<=(float comp) { return (deobfuscate() <= comp); }
-//     bool operator>(float comp) { return (deobfuscate() > comp); }
-//     bool operator<(float comp) { return (deobfuscate() < comp); }
-//     operator bool() const { return deobfuscate() != 0; }
-//     // Maybe this can work?
-//     // operator float() const { return deobfuscate(); }
-//
-//     float val() { return deobfuscate(); }
-//     const float val() const { return deobfuscate(); }
-//     void obfuscateAdd(float add) { obfuscate(deobfuscate() + add); }
-//     void obfuscateAdd(float add, float linenr) {
-//         obfuscate(deobfuscate() + add);
-//     }
-// };
-// class SplitFloat /*: public ProtectedFloat */ {
-//   private:
-//     float val0 = 0.0f;
-//     float val1 = 0.0f;
-//     float val2 = 0.0f;
-//     float val3 = 0.0f;
-//     float deobfuscate() const { return val0 + val1 + val2 + val3; }
-//     void obfuscate(float val) {
-//         // printf("val: %f\n", val);
-//         // int r = rand();
-//         // printf("%d\n", r);
-//         // printf("%d\n", r%static_cast<int>(val));
-//         // printf("%f\n", (float)(r%(int)val));
-//         val0 = val - (float)(rand() % 1000);
-//         // val1 = val / 2;
-//         // val2 = val / 3;
-//         val1 = val - (float)(rand() % 1000);
-//         val2 = val - (float)(rand() % 1000);
-//         val3 = val - val0 - val1 - val2;
-//         // printf("val0: %f, val1: %f, val2: %f, val3: %f\n", val0, val1,
-//         val2,
-//         //        val3);
-//     }
-//
-//   public:
-//     SplitFloat() {}          //: ProtectedFloat() {}
-//     SplitFloat(float val) {} // : ProtectedFloat(val) {}
-//     ~SplitFloat() = default;
-//
-//     SplitFloat &operator=(float val) {
-//         obfuscate(val);
-//         return *this;
-//     }
-//     SplitFloat &operator=(SplitFloat val) {
-//         return operator=(val.deobfuscate());
-//     }
-//     void obfuscateAdd(float add) {
-//         printf("add %f", add);
-//         val3 += add;
-//     }
-//     void obfuscateAdd(float add, int linenr) {
-//         if (linenr % 4 == 0) {
-//             val0 += add;
-//         } else if (linenr % 4 == 1) {
-//             val1 += add;
-//         } else if (linenr % 4 == 2) {
-//             val2 += add;
-//         } else if (linenr % 4 == 3) {
-//             val3 += add;
-//         }
-//     }
-//     float val() { return deobfuscate(); }
-//     const float val() const { return deobfuscate(); }
-// };
-//
-// class ProtectedInt {
-//   protected:
-//     int unprotected_val;
-//     virtual int deobfuscate() const { return unprotected_val; };
-//     virtual void obfuscate(int val) { unprotected_val = val; }
-//
-//   public:
-//     ProtectedInt() { obfuscate(0); }
-//     ProtectedInt(int val) { obfuscate(val); }
-//     virtual ~ProtectedInt() = default;
-//
-//     // OPERATORS
-//     ProtectedInt &operator=(int val) {
-//         obfuscate(val);
-//         return *this;
-//     }
-//     ProtectedInt &operator=(ProtectedInt val) {
-//         return operator=(val.deobfuscate());
-//     }
-//     ProtectedInt operator+(ProtectedInt add) {
-//         int val = deobfuscate();
-//         int valadd = add.deobfuscate();
-//         ProtectedInt p(val + valadd);
-//         return p;
-//     }
-//     ProtectedInt operator+(int add) {
-//         int val = deobfuscate();
-//         ProtectedInt p(val + add);
-//         return p;
-//     }
-//     ProtectedInt &operator+=(int add) {
-//         obfuscateAdd(add);
-//         return *this;
-//     }
-//     ProtectedInt &operator++(int) { return this->operator+=(1); }
-//     ProtectedInt &operator-=(int add) { return this->operator+=(-add); }
-//     ProtectedInt &operator--(int) { return this->operator-=(1); }
-//     operator bool() const { return deobfuscate() != 0; }
-//     // Maybe this can work?
-//     // operator int() const { return deobfuscate(); }
-//
-//     int val() { return deobfuscate(); }
-//     void obfuscateAdd(int add) { obfuscate(deobfuscate() + add); }
-//     void obfuscateAdd(int add, int linenr) { obfuscate(deobfuscate() + add);
-//     }
-// };
-//
-// class XORInt : public ProtectedInt {
-//   private:
-//     int mask = rand();
-//     int obfuscated_val;
-//     int deobfuscate() const override { return mask ^ obfuscated_val; }
-//     void obfuscate(int val) override { obfuscated_val = mask ^ val; }
-//     void obfuscateAdd(int add) { obfuscated_val += add; }
-//
-//   public:
-//     XORInt() : ProtectedInt() {}
-//     XORInt(int val) : ProtectedInt(val) {}
-//     ~XORInt() = default;
-// };
-//
-// class SplitInt : public ProtectedInt {
-//   private:
-//     int val0;
-//     int val1;
-//     int val2;
-//     int val3;
-//     int deobfuscate() const override { return val0 + val1 + val2 + val3; }
-//     void obfuscate(int val) override {
-//         val0 = val - rand();
-//         val1 = val / 2;
-//         val2 = val / 3;
-//         val3 = val - val0 - val1 - val2;
-//     }
-//
-//   public:
-//     SplitInt() : ProtectedInt() {}
-//     SplitInt(int val) : ProtectedInt(val) {}
-//     ~SplitInt() = default;
-//
-//     void obfuscateAdd(int add) { val3 += add; }
-//     void obfuscateAdd(int add, int linenr) {
-//         if (linenr % 4 == 0) {
-//             val0 += add;
-//         } else if (linenr % 4 == 1) {
-//             val1 += add;
-//         } else if (linenr % 4 == 2) {
-//             val2 += add;
-//         } else if (linenr % 4 == 3) {
-//             val3 += add;
-//         }
-//     }
-// };
-//
-// class ChainInt : public ProtectedInt {
-//   private:
-//     int size;
-//     int **p;
-//     int **start;
-//     int deobfuscate() const override { return **p; }
-//     void obfuscate(int val) override { **p = val; }
-//     void create_new_path(int val) {
-//         start = (int **)malloc(sizeof(int *));
-//         p = start;
-//         size = rand() % 10 + 1;
-//         for (int i = 0; i < size; i++) {
-//             int *next = (int *)malloc(sizeof(int *));
-//             *p = next;
-//             p = (int **)next;
-//         }
-//         int *next = (int *)malloc(sizeof(int *));
-//         *p = next;
-//         **p = val;
-//     }
-//     void free_path() {
-//         // clear value out of memory, might not work thanks to compiler
-//         obfuscate(0xdeadbeef);
-//         p = start;
-//         for (int i = 0; i < size + 1; i++) {
-//             int *next = *p;
-//             free(p);
-//             p = (int **)next;
-//         }
-//         free(p);
-//     }
-//
-//   public:
-//     ChainInt() { create_new_path(0); }
-//     ChainInt(int val) { create_new_path(val); }
-//     ~ChainInt() { free_path(); }
-//
-//     void newpath() {
-//         int val = deobfuscate();
-//         free_path();
-//         create_new_path(val);
-//     }
-// };
-//
 // template <typename T> class vec {
 //   private:
 //     T **arr;
@@ -738,26 +482,28 @@ class Overseer {
             due_for_path_update.push_back_no_dup(head->child_ids);
             // Make chain longer over time
             // every 10th updated increase to a max len of 10
-            if (LOGGING)
-                printf("Updated path: id=%lu", head->d->id);
+#ifdef LOGGING
+            printf("Updated path: id=%lu", head->d->id);
+#endif
             if (head->times_updated % 10 == 0 &&
                 head->times_updated + START_LEN * 10 <= head->max_len * 10) {
                 // TODO: decreasing lengths
                 change_chain_len(head->d,
                                  (head->times_updated / 10) + START_LEN);
-                if (LOGGING)
-                    printf(" and increased length to %ld",
-                           (head->times_updated.val() / 10) + START_LEN);
+#ifdef LOGGING
+                printf(" and increased length to %ld",
+                       (head->times_updated.val() / 10) + START_LEN);
+#endif
             }
-            if (LOGGING) {
-                printf("\nlist: ");
-                ListNode<unsigned long> *curr = due_for_path_update.head;
-                while (curr != nullptr) {
-                    printf("id=%lu ", curr->val);
-                    curr = curr->next;
-                }
-                printf("\n");
+#ifdef LOGGING
+            printf("\nlist: ");
+            ListNode<unsigned long> *curr = due_for_path_update.head;
+            while (curr != nullptr) {
+                printf("id=%lu ", curr->val);
+                curr = curr->next;
             }
+            printf("\n");
+#endif
         }
     }
 
@@ -783,8 +529,9 @@ class Overseer {
                 d->tail->val = (T *)malloc(sizeof(T));
                 return;
             } else {
-                if (LOGGING)
-                    printf("ERROR: currlen > len, %d, %d\n", currlen, len);
+#ifdef LOGGING
+                printf("ERROR: currlen > len, %d, %d\n", currlen, len);
+#endif
                 return;
             }
         }
@@ -812,9 +559,10 @@ class Overseer {
         T *valptr = new T();
         update_path_dummy(d, valptr);
         paths_created++;
-        if (LOGGING)
-            printf("Created path: id=%lu name=%s count=%lu\n", d->id,
-                   typeid(*valptr).name(), paths_created);
+#ifdef LOGGING
+        printf("Created path: id=%lu name=%s count=%lu\n", d->id,
+               typeid(*valptr).name(), paths_created);
+#endif
         // we do new and free to avoid calling the destructor of T which would
         // kill the protected<float>s it possesses
         // free(valptr);
@@ -828,14 +576,16 @@ class Overseer {
     }
 
     template <typename T> void free_path(Dummy<T> *d) {
-        if (LOGGING)
-            printf("Freed reg:        id=%lu\n", d->id);
+#ifdef LOGGING
+        printf("Freed reg:        id=%lu\n", d->id);
+#endif
         free_path_rec(d, -1);
     }
 
     template <typename T> void free_path_obj(Dummy<T> *d) {
-        if (LOGGING)
-            printf("Freed obj:        id=%lu\n", d->id);
+#ifdef LOGGING
+        printf("Freed obj:        id=%lu\n", d->id);
+#endif
         // call destructor of the obj
         Dummy<T> *special = resolve_dummy(d);
         int id = special->id;
@@ -1226,7 +976,8 @@ template <typename T> class Protected {
     const T val() const { return deobfuscate(); }
 
     // NOTE: Only use this when you know what you are doing, as this could
-    // induce undefined behavior
+    // induce semi undefined behavior
+    // also these conflicht with applying XOR protection to this
     T *ref() { return deobfuscate_ptr(); }
     T *operator&() { return ref(); }
     T *ref() const { return deobfuscate_ptr(); }

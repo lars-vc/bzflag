@@ -68,7 +68,7 @@ protected:
         ~BillboardRenderNode();
         void        setColor(const GLfloat* rgba);
         void        render();
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
         void        setFrame(float u, float v);
         void        setFrameSize(float du, float dv);
     private:

@@ -338,7 +338,7 @@ class Player {
     float inputRelVel[2];         // relative velocity
     float inputRelSpeed;          // relative speed
     float inputRelAngVel;         // relative angular velocity
-    float inputTurnCenter[2];     // tank turn center
+    Protected<float> inputTurnCenter[2];     // tank turn center
     float inputTurnVector[2];     // tank turn vector
     int inputPhyDrv;              // physics driver
 

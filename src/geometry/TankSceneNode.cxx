@@ -143,7 +143,10 @@ void TankSceneNode::move(const GLfloat pos[3], const GLfloat forward[3])
     const float rad2deg = (float)(180.0 / M_PI);
     azimuth = rad2deg * atan2f(forward[1], forward[0]);
     elevation = -rad2deg * atan2f(forward[2], hypotf(forward[0], forward[1]));
-    setCenter(pos);
+    // setCenter(pos);
+    values[0] = pos[0];
+    values[1] = pos[1];
+    values[2] = pos[2];
 
     // setup the extents
     const float maxRadius = 0.5f * (BZDBCache::tankLength + MuzzleMaxX);
@@ -223,7 +226,12 @@ void TankSceneNode::notifyStyleChange()
 void TankSceneNode::addRenderNodes(SceneRenderer& renderer)
 {
     // pick level of detail
-    const GLfloat* mySphere = getSphere();
+    // const GLfloat* mySphere = getSphere();
+    GLfloat mySphere[3];
+    mySphere[0] = values[0];
+    mySphere[1] = values[1];
+    mySphere[2] = values[2];
+
     const ViewFrustum& view = renderer.getViewFrustum();
     const float size = mySphere[3] *
                        (view.getAreaFactor() /getDistance(view.getEye()));
@@ -379,7 +387,7 @@ void TankSceneNode::setExplodeFraction(float t)
     explodeFraction = t;
     if (t != 0.0f)
     {
-        const float radius = sqrtf(getSphere()[3]);
+        const float radius = sqrtf(values[3]);
         const float radinc = t * maxExplosionVel;
         const float newrad = radius + radinc;
         setRadius(newrad * newrad);
@@ -397,7 +405,11 @@ void TankSceneNode::setJumpJets(float scale)
         jumpJetsScale = scale;
 
         // set the real light's position
-        const float* pos = getSphere();
+        float pos[3];
+        pos[0] = values[0];
+        pos[1] = values[1];
+        pos[2] = values[2];
+
         jumpJetsRealLight.setPosition(pos);
 
         // set the jet ground-light and model positions
@@ -501,7 +513,10 @@ void TankSceneNode::rebuildExplosion()
 void TankSceneNode::renderRadar()
 {
     const float angleCopy = azimuth;
-    const float* mySphere = getSphere();
+    float mySphere[3];
+    mySphere[0] = values[0];
+    mySphere[1] = values[1];
+    mySphere[2] = values[2];
     float posCopy[3];
     memcpy(posCopy, mySphere, sizeof(float[3]));
 
@@ -514,7 +529,10 @@ void TankSceneNode::renderRadar()
     else
         tankPos[2] = mySphere[2];
 
-    setCenter(tankPos);
+    // setCenter(tankPos);
+    values[0] = tankPos[0];
+    values[1] = tankPos[1];
+    values[2] = tankPos[2];
     azimuth = 0.0f;
 
     float oldAlpha = color[3];
@@ -538,7 +556,9 @@ void TankSceneNode::renderRadar()
 
     color[3] = oldAlpha;
 
-    setCenter(posCopy);
+    values[0] = posCopy[0];
+    values[1] = posCopy[1];
+    values[2] = posCopy[2];
     azimuth = angleCopy;
 
     return;
@@ -547,7 +567,12 @@ void TankSceneNode::renderRadar()
 
 bool TankSceneNode::cullShadow(int planeCount, const float (*planes)[4]) const
 {
-    const float* s = getSphere();
+    // const float* s = getSphere();
+    float s[3];
+    s[0] = values[0];
+    s[1] = values[1];
+    s[2] = values[2];
+    s[3] = values[3];
     for (int i = 0; i < planeCount; i++)
     {
         const float* p = planes[i];
@@ -597,7 +622,11 @@ void TankIDLSceneNode::move(const GLfloat _plane[4])
     plane[3] = _plane[3];
 
     // compute new sphere
-    const GLfloat* s = tank->getSphere();
+    // const GLfloat* s = tank->getSphere();
+    GLfloat s[3];
+    s[0] = tank->values[0];
+    s[1] = tank->values[1];
+    s[2] = tank->values[2];
     setCenter(s[0] + 1.5f * BZDBCache::tankLength * plane[0],
               s[1] + 1.5f * BZDBCache::tankLength * plane[1],
               s[2] + 1.5f * BZDBCache::tankLength * plane[2]);
@@ -733,9 +762,11 @@ TankIDLSceneNode::IDLRenderNode::~IDLRenderNode()
     return;
 }
 
-const GLfloat* TankIDLSceneNode::IDLRenderNode::getPosition() const
+const std::array<GLfloat,3> TankIDLSceneNode::IDLRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void TankIDLSceneNode::IDLRenderNode::render()
@@ -744,7 +775,11 @@ void TankIDLSceneNode::IDLRenderNode::render()
     static const GLfloat outerColor[4] = { 1.0f, 1.0f, 1.0f, 0.0f };
 
     // compute plane in tank's space
-    const GLfloat* sphere = sceneNode->tank->getSphere();
+    GLfloat sphere[4];
+    sphere[0] = sceneNode->tank->values[0];
+    sphere[1] = sceneNode->tank->values[1];
+    sphere[2] = sceneNode->tank->values[2];
+    sphere[3] = sceneNode->tank->values[3];
     const GLfloat* _plane = sceneNode->plane;
     const GLfloat azimuth = sceneNode->tank->azimuth;
     const GLfloat ca = cosf(-azimuth * (float)M_PI / 180.0f);
@@ -871,9 +906,13 @@ TankSceneNode::TankRenderNode::~TankRenderNode()
     return;
 }
 
-const GLfloat* TankSceneNode::TankRenderNode::getPosition() const
+const std::array<GLfloat,3> TankSceneNode::TankRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    B[0]=sceneNode->values[0];
+    B[1]=sceneNode->values[1];
+    B[2]=sceneNode->values[2];
+    return B;
 }
 
 void TankSceneNode::TankRenderNode::setRadar(bool radar)
@@ -950,7 +989,12 @@ void TankSceneNode::TankRenderNode::render()
         glEnable(GL_CLIP_PLANE1);
     }
 
-    const GLfloat* sphere = sceneNode->getSphere();
+    // const GLfloat* sphere = sceneNode->getSphere();
+    GLfloat sphere[4];
+    sphere[0] = sceneNode->values[0];
+    sphere[1] = sceneNode->values[1];
+    sphere[2] = sceneNode->values[2];
+    sphere[3] = sceneNode->values[3];
 
     // save the MODELVIEW matrix
     glPushMatrix();

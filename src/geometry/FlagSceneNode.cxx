@@ -542,9 +542,11 @@ void            FlagSceneNode::FlagRenderNode::render()
         myStipple(0.5f);
 }
 
-const GLfloat*  FlagSceneNode::FlagRenderNode::getPosition() const
+const std::array<GLfloat,3>  FlagSceneNode::FlagRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 

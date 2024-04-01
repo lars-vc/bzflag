@@ -38,7 +38,7 @@ protected:
                               const float size[3], float rotation);
         ~EighthDBaseRenderNode();
         void        render();
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
     private:
         const EighthDBaseSceneNode *sceneNode;
         GLfloat corner[8][3];

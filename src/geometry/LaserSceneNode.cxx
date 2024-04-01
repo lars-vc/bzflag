@@ -135,9 +135,11 @@ LaserSceneNode::LaserRenderNode::~LaserRenderNode()
     // do nothing
 }
 
-const GLfloat* LaserSceneNode::LaserRenderNode::getPosition() const
+const std::array<GLfloat,3> LaserSceneNode::LaserRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void LaserSceneNode::LaserRenderNode::render()

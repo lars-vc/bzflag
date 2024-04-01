@@ -1182,10 +1182,10 @@ void Player::getDeadReckoning(float* predictedPos, float* predictedAzimuth,
             *predictedAzimuth += angle;
             const float cos_val = cosf(angle);
             const float sin_val = sinf(angle);
-            const float* tc = inputTurnCenter;
+            const Protected<float>* tc = inputTurnCenter;
             const float* tv = inputTurnVector;
-            predictedPos[0] = tc[0] + ((tv[0] * cos_val) - (tv[1] * sin_val));
-            predictedPos[1] = tc[1] + ((tv[1] * cos_val) + (tv[0] * sin_val));
+            predictedPos[0] = tc[0].val() + ((tv[0] * cos_val) - (tv[1] * sin_val));
+            predictedPos[1] = tc[1].val() + ((tv[1] * cos_val) + (tv[0] * sin_val));
             const float* rv = inputRelVel;
             predictedVel[0] = (rv[0] * cos_val) - (rv[1] * sin_val);
             predictedVel[1] = (rv[1] * cos_val) + (rv[0] * sin_val);
@@ -1444,10 +1444,9 @@ void Player::setDeadReckoning()
     inputAzimuth = state->azimuth;
     inputAngVel = state->angVel;
 
-    const float tmp[3] = { getPosition()[0].val(), getPosition()[1].val(), getPosition()[2].val()};
-    inputPos[0] = tmp[0];
-    inputPos[1] = tmp[1];
-    inputPos[2] = tmp[2];
+    inputPos[0] = state->pos[0];
+    inputPos[1] = state->pos[1];
+    inputPos[2] = state->pos[2];
     // memcpy(inputPos, tmp, sizeof(float[3]));
     memcpy(inputVel, state->velocity, sizeof(float[3]));
     inputPhyDrv = state->phydrv;
@@ -1467,8 +1466,8 @@ void Player::setDeadReckoning()
         const float radius = (inputRelSpeed / inputRelAngVel);
         inputTurnVector[0] = +sinf(inputAzimuth) * radius;
         inputTurnVector[1] = -cosf(inputAzimuth) * radius;
-        inputTurnCenter[0] = inputPos[0].val() - inputTurnVector[0];
-        inputTurnCenter[1] = inputPos[1].val() - inputTurnVector[1];
+        inputTurnCenter[0] = inputPos[0] - inputTurnVector[0];
+        inputTurnCenter[1] = inputPos[1] - inputTurnVector[1];
     }
 
     return;

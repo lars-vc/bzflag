@@ -55,7 +55,7 @@ protected:
         FlagRenderNode(const FlagSceneNode*);
         ~FlagRenderNode();
         void        render() override;
-        const GLfloat*  getPosition() const override;
+        const std::array<GLfloat,3>  getPosition() const override;
     private:
         const FlagSceneNode* sceneNode;
         int      waveReference;

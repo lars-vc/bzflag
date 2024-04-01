@@ -138,9 +138,11 @@ EighthDPyrSceneNode::EighthDPyrRenderNode::~EighthDPyrRenderNode()
     // do nothing
 }
 
-const GLfloat* EighthDPyrSceneNode::EighthDPyrRenderNode::getPosition() const
+const std::array<GLfloat,3> EighthDPyrSceneNode::EighthDPyrRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            EighthDPyrSceneNode::EighthDPyrRenderNode::render()

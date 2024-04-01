@@ -39,7 +39,7 @@ class EighthDimShellNode : public SceneNode {
         ~ShellRenderNode();
         void render();
         void renderShadow() { return; }
-        const GLfloat *getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
 
       public:
         const OpenGLGState *getGState() const;

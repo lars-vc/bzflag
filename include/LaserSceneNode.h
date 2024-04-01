@@ -48,7 +48,7 @@ protected:
         LaserRenderNode(const LaserSceneNode*);
         ~LaserRenderNode();
         void        render();
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
     private:
         void renderFlatLaser();
         void renderGeoLaser();

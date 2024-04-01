@@ -67,7 +67,7 @@ protected:
         void        setColor(const GLfloat* rgba);
         void        setTextureColor(const GLfloat* rgba);
         void        render();
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
         void        setAnimation(int cu, int cv);
 
         void        renderGeoBolt();

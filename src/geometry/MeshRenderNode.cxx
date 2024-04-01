@@ -45,11 +45,13 @@ OpaqueRenderNode::OpaqueRenderNode(MeshDrawMgr* _drawMgr,
 }
 
 
-const GLfloat* OpaqueRenderNode::getPosition() const
+const std::array<GLfloat,3> OpaqueRenderNode::getPosition() const
 {
     // Better to not crash if called on sort
     static GLfloat nullVec3[3];
-    return nullVec3;
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), nullVec3, 3*sizeof(GLfloat));
+    return B;
 }
 
 void OpaqueRenderNode::render()
@@ -127,9 +129,11 @@ AlphaGroupRenderNode::AlphaGroupRenderNode(MeshDrawMgr* _drawMgr,
     return;
 }
 
-const GLfloat* AlphaGroupRenderNode::getPosition() const
+const std::array<GLfloat,3> AlphaGroupRenderNode::getPosition() const
 {
-    return pos;
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), pos, 3*sizeof(GLfloat));
+    return B;
 }
 
 void AlphaGroupRenderNode::setPosition(const GLfloat* _pos)

@@ -112,9 +112,11 @@ FlagWarpSceneNode::FlagWarpRenderNode::~FlagWarpRenderNode()
     // do nothing
 }
 
-const GLfloat* FlagWarpSceneNode::FlagWarpRenderNode::getPosition() const
+const std::array<GLfloat,3> FlagWarpSceneNode::FlagWarpRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            FlagWarpSceneNode::FlagWarpRenderNode::render()

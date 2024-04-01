@@ -25,6 +25,7 @@
 
 // System headers
 #include <vector>
+#include <array>
 
 // Global headers
 #include "OpenGLGState.h"
@@ -40,7 +41,7 @@ public:
     virtual void    renderShadow();
     virtual void    renderRadar();
     // Used for sorting objects by distance
-    virtual const GLfloat* getPosition() const = 0;
+    virtual const std::array<GLfloat,3> getPosition() const = 0;
 
     static int      getTriangleCount();
     static void     resetTriangleCount();

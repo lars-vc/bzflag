@@ -18,6 +18,7 @@
 #define BZF_TANK_SCENE_NODE_H
 
 #include "common.h"
+#include "lars.h"
 #include "SceneNode.h"
 #include "OpenGLLight.h"
 #include "TankGeometryMgr.h"
@@ -80,7 +81,7 @@ public:
         IDLRenderNode(const TankIDLSceneNode*);
         ~IDLRenderNode();
         void        render();
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
     private:
         const TankIDLSceneNode* sceneNode;
         static const int    idlFaces[][5];
@@ -169,7 +170,7 @@ protected:
         void        setTankSize(TankGeometryEnums::TankSize);
         void        sortOrder(bool above, bool towards, bool left);
         void        setNarrowWithDepth(bool narrow);
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
 
         void        render();
         void        renderPart(TankGeometryEnums::TankPart part);
@@ -202,6 +203,8 @@ protected:
     };
     friend class TankRenderNode;
 
+public:
+    Protected<GLfloat>     values[4];
 private:
     GLfloat     azimuth, elevation;
     GLfloat     baseRadius;

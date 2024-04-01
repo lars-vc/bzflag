@@ -330,9 +330,11 @@ SphereLodSceneNode::SphereLodRenderNode::~SphereLodRenderNode()
     return;
 }
 
-const GLfloat* SphereLodSceneNode::SphereLodRenderNode::getPosition() const
+const std::array<GLfloat,3> SphereLodSceneNode::SphereLodRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void SphereLodSceneNode::SphereLodRenderNode::setLod(int _lod)
@@ -602,9 +604,11 @@ SphereBspSceneNode::SphereBspRenderNode::~SphereBspRenderNode()
     // do nothing
 }
 
-const GLfloat* SphereBspSceneNode::SphereBspRenderNode::getPosition() const
+const std::array<GLfloat,3> SphereBspSceneNode::SphereBspRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            SphereBspSceneNode::SphereBspRenderNode::
@@ -818,10 +822,12 @@ getVertex() const
     return SphereBspSceneNode::SphereBspRenderNode::lgeom[phi * SphereLowRes + theta];
 }
 
-const GLfloat*      SphereFragmentSceneNode::FragmentRenderNode::
+const std::array<GLfloat,3>      SphereFragmentSceneNode::FragmentRenderNode::
 getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            SphereFragmentSceneNode::FragmentRenderNode::render()

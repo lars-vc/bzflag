@@ -155,9 +155,11 @@ public:
     {
         return;
     }
-    const GLfloat* getPosition() const override
+    const std::array<GLfloat,3> getPosition() const override
     {
-        return te->pos;
+        std::array<GLfloat, 3> B;
+        memcpy(B.data(), te->pos, 3*sizeof(GLfloat));
+        return B;
     }
 
 private:

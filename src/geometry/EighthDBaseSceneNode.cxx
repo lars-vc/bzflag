@@ -128,9 +128,11 @@ EighthDBaseSceneNode::EighthDBaseRenderNode::~EighthDBaseRenderNode()
     // do nothing
 }
 
-const GLfloat* EighthDBaseSceneNode::EighthDBaseRenderNode::getPosition() const
+const std::array<GLfloat,3> EighthDBaseSceneNode::EighthDBaseRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void EighthDBaseSceneNode::EighthDBaseRenderNode::render()

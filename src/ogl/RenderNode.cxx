@@ -102,7 +102,7 @@ void RenderNodeGStateList::sort(const GLfloat* e)
     // calculate distances from the eye (squared)
     for (auto &item : list)
     {
-        const GLfloat* p = item.node->getPosition();
+        const std::array<GLfloat,3> p = item.node->getPosition();
         const float dx = (p[0] - e[0]);
         const float dy = (p[1] - e[1]);
         const float dz = (p[2] - e[2]);

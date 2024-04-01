@@ -226,9 +226,11 @@ void MeshFragSceneNode::Geometry::setStyle(int style_)
     style = style_;
 }
 
-const GLfloat* MeshFragSceneNode::Geometry::getPosition() const
+const std::array<GLfloat,3> MeshFragSceneNode::Geometry::getPosition() const
 {
-    return sceneNode.getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode.getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 //

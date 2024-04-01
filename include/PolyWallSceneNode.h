@@ -50,7 +50,7 @@ protected:
             style = _style;
         }
         void        render();
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
     private:
         void        drawV() const;
         void        drawVT() const;

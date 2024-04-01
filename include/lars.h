@@ -1,5 +1,5 @@
 #pragma once
-#define LOGGING
+// #define LOGGING
 #ifdef LOGGING
 #include <cstdio>
 #include <typeinfo>
@@ -11,11 +11,16 @@ extern "C" { // should be statically linked
 
 #include <map>      // could be replaced with own map
 #include <stdlib.h> // needed for rand and malloc
+#include <cstring> // needed for memcpy
 
 #define PERF_MODE 0
 #define TTLU_MAX 240
 #define START_LEN 3
 #define MAX_LEN 9
+
+typedef unsigned long ulong;
+typedef unsigned int uint;
+typedef unsigned short ushort;
 
 typedef ulong (*pulful)(ulong);
 typedef short (*psfs)(short);
@@ -158,6 +163,7 @@ template <typename T> class List {
         }
     }
 
+#ifdef LOGGING
     void print() {
         printf("list: ");
         if (head == nullptr) {
@@ -172,6 +178,7 @@ template <typename T> class List {
         printf("\n");
         printf("head=%lu tail=%lu\n", head->val, tail->val);
     }
+#endif
 
     T pop_back() {
         if (head == nullptr) {
@@ -402,13 +409,13 @@ template <typename T> struct DummyHead {
     bool is_obj;
 };
 
-template <typename T> struct ChainOptions {
+struct ChainOptions {
     ushort max_chain_length = MAX_LEN;
     uint max_time_til_update = TTLU_MAX;
     uint amount_children = 0;
 
-    ChainOptions<T>() {}
-    ChainOptions<T>(ushort max_chain_length,
+    ChainOptions() {}
+    ChainOptions(ushort max_chain_length,
                     uint max_time_til_update = TTLU_MAX,
                     uint amount_children = 0)
         : max_chain_length(max_chain_length),
@@ -473,6 +480,7 @@ class Overseer {
     }
 
     template <typename T> void check_and_update_head(DummyHead<T> *head) {
+        // TODO: remove this is for testing
         if (due_for_path_update.contains(head->d->id)) {
             update_path_dummy_erase(head->d);
             due_for_path_update.erase(head->d->id);
@@ -968,9 +976,7 @@ template <typename T> class Protected {
     Protected &operator++(int) { return this->operator+=(1); }
     Protected &operator-=(T add) { return this->operator+=(-add); }
     Protected &operator--(int) { return this->operator-=(1); }
-    operator bool() const { return deobfuscate() != 0; }
-    // Maybe this can work?
-    // operator int() const { return deobfuscate(); }
+    // operator bool() const { return deobfuscate() != 0; }
 
     T val() { return deobfuscate(); }
     const T val() const { return deobfuscate(); }

@@ -41,9 +41,11 @@ PolyWallSceneNode::Geometry::~Geometry()
     // do nothing
 }
 
-const GLfloat* PolyWallSceneNode::Geometry::getPosition() const
+const std::array<GLfloat,3> PolyWallSceneNode::Geometry::getPosition() const
 {
-    return wall->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), wall->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            PolyWallSceneNode::Geometry::render()

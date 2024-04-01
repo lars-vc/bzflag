@@ -34,7 +34,7 @@ public:
     void render();
     void renderRadar();
     void renderShadow();
-    const GLfloat* getPosition() const override;
+    const std::array<GLfloat,3> getPosition() const override;
 private:
     void drawV() const;
     void drawVN() const;
@@ -59,7 +59,7 @@ public:
                          const GLfloat* color, int lod, int set,
                          const Extents* exts, const float pos[3],
                          int triangles);
-    const GLfloat* getPosition() const override;
+    const std::array<GLfloat,3> getPosition() const override;
     void setPosition(const GLfloat* pos);
 private:
     float pos[3];

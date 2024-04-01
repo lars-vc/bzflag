@@ -44,7 +44,7 @@ protected:
         ~EighthDimRenderNode();
         void        render();
         void        setPolygon(int index, const GLfloat[3][3]);
-        const GLfloat* getPosition() const override;
+        const std::array<GLfloat,3> getPosition() const override;
     private:
         const EighthDimSceneNode* sceneNode;
         int     numPolygons;

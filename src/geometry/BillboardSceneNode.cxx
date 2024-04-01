@@ -331,9 +331,11 @@ BillboardSceneNode::BillboardRenderNode::~BillboardRenderNode()
     // do nothing
 }
 
-const GLfloat* BillboardSceneNode::BillboardRenderNode::getPosition() const
+const std::array<GLfloat,3> BillboardSceneNode::BillboardRenderNode::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            BillboardSceneNode::BillboardRenderNode::

@@ -48,9 +48,11 @@ MeshPolySceneNode::Geometry::~Geometry()
     return;
 }
 
-const GLfloat*  MeshPolySceneNode::Geometry::getPosition() const
+const std::array<GLfloat,3>  MeshPolySceneNode::Geometry::getPosition() const
 {
-    return sceneNode->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), sceneNode->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 inline void MeshPolySceneNode::Geometry::drawV() const

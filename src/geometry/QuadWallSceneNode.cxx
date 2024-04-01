@@ -147,9 +147,11 @@ QuadWallSceneNode::Geometry::~Geometry()
 #define EMITV(_i)   glVertex3fv(vertex[_i])
 #define EMITVT(_i)  glTexCoord2fv(uv[_i]); glVertex3fv(vertex[_i])
 
-const GLfloat* QuadWallSceneNode::Geometry::getPosition() const
+const std::array<GLfloat,3> QuadWallSceneNode::Geometry::getPosition() const
 {
-    return wall->getSphere();
+    std::array<GLfloat, 3> B;
+    memcpy(B.data(), wall->getSphere(), 3*sizeof(GLfloat));
+    return B;
 }
 
 void            QuadWallSceneNode::Geometry::render()

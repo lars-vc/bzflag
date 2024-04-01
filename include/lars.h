@@ -863,7 +863,7 @@ class Overseer {
     }
 
     template <typename T>
-    DummyHead<T> *create_head(ChainOptions<T> options, bool is_obj) {
+    DummyHead<T> *create_head(ChainOptions options, bool is_obj) {
         DummyHead<T> *head = new DummyHead<T>();
         head->ttlu_max = options.max_time_til_update;
         head->times_updated = 0;
@@ -935,11 +935,11 @@ template <typename T> class Protected {
     //     head = overseer->create_head<T>(MAX_LEN, false);
     //     overseer->change_value(head, val);
     // }
-    Protected(ChainOptions<T> options = ChainOptions<T>()) {
+    Protected(ChainOptions options = ChainOptions()) {
         head = overseer->create_head<T>(options, false);
     }
     Protected(Protected<T> const &p) {
-        head = overseer->create_head<T>(ChainOptions<T>(), false);
+        head = overseer->create_head<T>(ChainOptions(), false);
         obfuscate(p.val());
     }
     // TODO: LARS
@@ -990,6 +990,7 @@ template <typename T> class Protected {
     T *operator&() const { return ref(); }
 
     operator T() { return deobfuscate(); }
+    operator const T() const { return deobfuscate(); }
 };
 
 // template <typename T> class ProtectedObj {
@@ -1080,7 +1081,7 @@ template <typename T> class Ptr {
 
   public:
     // Ptr() { head = overseer->create_head<T>(MAX_LEN, true); }
-    Ptr(ChainOptions<T> options = ChainOptions<T>()) {
+    Ptr(ChainOptions options = ChainOptions()) {
         head = overseer->create_head<T>(options, true);
     }
     Ptr(Ptr const &p) {

@@ -487,9 +487,9 @@ class Overseer {
     }
 
     template <typename T> void check_and_update_head(DummyHead<T> *head) {
-        if (due_for_path_update2.count(head->d->id)) {
+        if (due_for_path_update.count(head->d->id)) {
             update_path_dummy_erase(head->d);
-            List<ulong> *list = due_for_path_update2[head->d->id];
+            List<ulong> *list = due_for_path_update[head->d->id];
             head->ttlu = time;
             head->times_updated += 1;
 
@@ -499,10 +499,10 @@ class Overseer {
                 if (!list->contains(curr->val)) {
                     List<ulong> *l = new List<ulong>();
                     l->push_back(head->d->id);
-                    if (!due_for_path_update2.count(curr->val))
-                        due_for_path_update2[curr->val] = l;
+                    if (!due_for_path_update.count(curr->val))
+                        due_for_path_update[curr->val] = l;
                     else
-                        due_for_path_update2[curr->val]->push_back_no_dup(*l);
+                        due_for_path_update[curr->val]->push_back_no_dup(*l);
                 }
                 curr = curr->next;
             }
@@ -512,15 +512,15 @@ class Overseer {
                 !list->contains(head->parent_id.val())) {
                 List<ulong> *l = new List<ulong>();
                 l->push_back(head->d->id);
-                if (!due_for_path_update2.count(head->parent_id.val()))
-                    due_for_path_update2[head->parent_id.val()] = l;
+                if (!due_for_path_update.count(head->parent_id.val()))
+                    due_for_path_update[head->parent_id.val()] = l;
                 else
-                    due_for_path_update2[head->parent_id.val()]
+                    due_for_path_update[head->parent_id.val()]
                         ->push_back_no_dup(*l);
             }
 
             // delete prev entry
-            due_for_path_update2.erase(head->d->id);
+            due_for_path_update.erase(head->d->id);
             delete list;
             // due_for_path_update.push_back_no_dup(head->child_ids);
 
@@ -542,8 +542,8 @@ class Overseer {
 #ifdef LOGGING
             printf("\nlist: ");
             std::map<ulong, List<ulong> *>::iterator it;
-            for (it = due_for_path_update2.begin();
-                 it != due_for_path_update2.end(); it++) {
+            for (it = due_for_path_update.begin();
+                 it != due_for_path_update.end(); it++) {
                 printf("id=%lu { ", it->first);
                 ListNode<unsigned long> *log = it->second->head;
                 while (log != nullptr) {
@@ -767,8 +767,7 @@ class Overseer {
     // std::map<unsigned long, short> catalog;
     std::map<unsigned long, short> catalog;
     // update path on next resolve
-    List<ulong> due_for_path_update;
-    std::map<ulong, List<ulong> *> due_for_path_update2;
+    std::map<ulong, List<ulong> *> due_for_path_update;
     unsigned long paths_created = 0;
     unsigned long totalcounter = 0;
     unsigned long alloc_sum = 0;
@@ -946,9 +945,9 @@ class Overseer {
         // check if dummy is due for chain update
         if (time - head->ttlu >= head->ttlu_max) {
             // don't add if already in list
-            if (!due_for_path_update2.count(head->d->id)) {
+            if (!due_for_path_update.count(head->d->id)) {
                 List<ulong> *l = new List<ulong>();
-                due_for_path_update2[head->d->id] = l;
+                due_for_path_update[head->d->id] = l;
             }
         }
         check_and_update_head(head);

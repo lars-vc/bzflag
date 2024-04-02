@@ -1,5 +1,5 @@
 #pragma once
-// #define LOGGING
+#define LOGGING
 #ifdef LOGGING
 #include <cstdio>
 #include <typeinfo>
@@ -9,9 +9,9 @@ extern "C" { // should be statically linked
 #include <lightning.h>
 }
 
+#include <cstring>  // needed for memcpy
 #include <map>      // could be replaced with own map
 #include <stdlib.h> // needed for rand and malloc
-#include <cstring> // needed for memcpy
 
 #define PERF_MODE 0
 #define TTLU_MAX 240
@@ -270,6 +270,12 @@ template <typename T> class List {
     }
 };
 
+template <typename T, typename Y> struct Tuple {
+    T first;
+    Y second;
+    Tuple(T first, Y second) : first(first), second(second) {}
+};
+
 ////////////////////////////////////////////////////////////////////////////////////
 // NOTE: Can not accept types larger than 8 bytes
 template <typename T> class XOR {
@@ -405,7 +411,9 @@ template <typename T> struct DummyHead {
     XOR<ulong> times_updated;
     XOR<uint> max_len;
 
+    XOR<ulong> parent_id;
     List<ulong> child_ids;
+
     bool is_obj;
 };
 
@@ -415,9 +423,8 @@ struct ChainOptions {
     uint amount_children = 0;
 
     ChainOptions() {}
-    ChainOptions(ushort max_chain_length,
-                    uint max_time_til_update = TTLU_MAX,
-                    uint amount_children = 0)
+    ChainOptions(ushort max_chain_length, uint max_time_til_update = TTLU_MAX,
+                 uint amount_children = 0)
         : max_chain_length(max_chain_length),
           max_time_til_update(max_time_til_update),
           amount_children(amount_children) {}
@@ -480,14 +487,43 @@ class Overseer {
     }
 
     template <typename T> void check_and_update_head(DummyHead<T> *head) {
-        // TODO: remove this is for testing
-        if (due_for_path_update.contains(head->d->id)) {
+        if (due_for_path_update2.count(head->d->id)) {
             update_path_dummy_erase(head->d);
-            due_for_path_update.erase(head->d->id);
+            List<ulong> *list = due_for_path_update2[head->d->id];
             head->ttlu = time;
             head->times_updated += 1;
+
             // add children to update list
-            due_for_path_update.push_back_no_dup(head->child_ids);
+            ListNode<ulong> *curr = head->child_ids.head;
+            while (curr != nullptr) {
+                if (!list->contains(curr->val)) {
+                    List<ulong> *l = new List<ulong>();
+                    l->push_back(head->d->id);
+                    if (!due_for_path_update2.count(curr->val))
+                        due_for_path_update2[curr->val] = l;
+                    else
+                        due_for_path_update2[curr->val]->push_back_no_dup(*l);
+                }
+                curr = curr->next;
+            }
+
+            // add parent to update list
+            if (head->parent_id.val() != -1 &&
+                !list->contains(head->parent_id.val())) {
+                List<ulong> *l = new List<ulong>();
+                l->push_back(head->d->id);
+                if (!due_for_path_update2.count(head->parent_id.val()))
+                    due_for_path_update2[head->parent_id.val()] = l;
+                else
+                    due_for_path_update2[head->parent_id.val()]
+                        ->push_back_no_dup(*l);
+            }
+
+            // delete prev entry
+            due_for_path_update2.erase(head->d->id);
+            delete list;
+            // due_for_path_update.push_back_no_dup(head->child_ids);
+
             // Make chain longer over time
             // every 10th updated increase to a max len of 10
 #ifdef LOGGING
@@ -505,10 +541,16 @@ class Overseer {
             }
 #ifdef LOGGING
             printf("\nlist: ");
-            ListNode<unsigned long> *curr = due_for_path_update.head;
-            while (curr != nullptr) {
-                printf("id=%lu ", curr->val);
-                curr = curr->next;
+            std::map<ulong, List<ulong> *>::iterator it;
+            for (it = due_for_path_update2.begin();
+                 it != due_for_path_update2.end(); it++) {
+                printf("id=%lu { ", it->first);
+                ListNode<unsigned long> *log = it->second->head;
+                while (log != nullptr) {
+                    printf("%lu ", log->val);
+                    log = log->next;
+                }
+                printf("}, ");
             }
             printf("\n");
 #endif
@@ -564,7 +606,11 @@ class Overseer {
 
     template <typename T> Dummy<T> *create_path(int len) {
         Dummy<T> *d = create_path_rec<T>(0, len);
+
+        parent_stack.push_back(d->id);
         T *valptr = new T();
+        parent_stack.pop_back();
+
         update_path_dummy(d, valptr);
         paths_created++;
 #ifdef LOGGING
@@ -722,6 +768,7 @@ class Overseer {
     std::map<unsigned long, short> catalog;
     // update path on next resolve
     List<ulong> due_for_path_update;
+    std::map<ulong, List<ulong> *> due_for_path_update2;
     unsigned long paths_created = 0;
     unsigned long totalcounter = 0;
     unsigned long alloc_sum = 0;
@@ -729,7 +776,8 @@ class Overseer {
     pulful transform_id;
     psfs encode_pick;
     psfs decode_pick;
-    List<ulong> id_stack;
+    List<ulong> child_stack;
+    List<ulong> parent_stack;
 
   public:
     Overseer() {
@@ -871,14 +919,18 @@ class Overseer {
         head->max_len = options.max_chain_length > START_LEN
                             ? options.max_chain_length
                             : START_LEN;
-        head->d = create_path<T>(START_LEN);
+        if (parent_stack.is_empty())
+            head->parent_id = -1;
+        else
+            head->parent_id = parent_stack.peek_back();
+        head->d = create_path<T>(START_LEN); // this will create children
         head->child_ids = List<ulong>();
-        if (!id_stack.is_empty()) {
+        if (!child_stack.is_empty()) {
             for (uint i = 0; i < options.amount_children; i++) {
-                head->child_ids.push_back(id_stack.pop_back());
+                head->child_ids.push_back(child_stack.pop_back());
             }
         }
-        id_stack.push_back(head->d->id);
+        child_stack.push_back(head->d->id);
         return head;
     }
 
@@ -894,12 +946,9 @@ class Overseer {
         // check if dummy is due for chain update
         if (time - head->ttlu >= head->ttlu_max) {
             // don't add if already in list
-            // printf("TEST resolve\n");
-            // due_for_path_update.print();
-            if (!due_for_path_update.contains(head->d->id)) {
-                // printf("TEST resolve2\n");
-                due_for_path_update.push_back(head->d->id);
-                // due_for_path_update.print();
+            if (!due_for_path_update2.count(head->d->id)) {
+                List<ulong> *l = new List<ulong>();
+                due_for_path_update2[head->d->id] = l;
             }
         }
         check_and_update_head(head);

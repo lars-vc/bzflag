@@ -3,7 +3,7 @@
 ///////////////////////////////////////////
 // TODO: Cooler name
 #pragma once
-#define LOGGING
+// #define LOGGING
 #ifdef LOGGING
 #include <cstdio>
 #include <typeinfo>
@@ -13,7 +13,6 @@ extern "C" { // should be statically linked
 #include <lightning.h>
 }
 
-// #include <cstring>  // needed for owncpy
 #include <map>      // could be replaced with own map
 #include <stdlib.h> // needed for rand and malloc
 
@@ -28,9 +27,9 @@ typedef unsigned short ushort;
 
 typedef ulong (*pulful)(ulong);
 typedef short (*psfs)(short);
-static jit_state_t *jit1;
-static jit_state_t *jit2;
-static jit_state_t *jit3;
+static jit_state_t *id_transform_jit_state;
+static jit_state_t *pick_encode_jit_state;
+static jit_state_t *pick_decode_jit_state;
 ////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////DATASTRUCTURES///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -236,8 +235,6 @@ template <typename T> class XOR {
     XOR() { obfuscate(0); }
     XOR(T val) { obfuscate(val); }
     XOR(XOR<T> const &x) { obfuscate(x.val()); }
-    // TODO: LARS
-    // XOR(XOR &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
     ~XOR() {}
 
     XOR &operator=(T val) {
@@ -245,11 +242,6 @@ template <typename T> class XOR {
         return *this;
     }
     XOR &operator=(XOR &val) { return operator=(val.deobfuscate()); }
-    // TODO:
-    // XOR &operator=(XOR &&val) {
-    //     printf("TODO MOVE assignment\n");
-    //     return nullptr;
-    // }
     XOR operator+(XOR add) {
         T val = deobfuscate();
         T valadd = add.deobfuscate();
@@ -318,7 +310,6 @@ template <typename T> class XOR {
     template <typename C> XOR<T> operator*(XOR<C> comp) {
         return XOR<T>(deobfuscate() * comp.val());
     }
-    // operator bool() const { return deobfuscate() != 0; }
     // Maybe this can work?
     // operator int() const { return deobfuscate(); }
 
@@ -417,8 +408,6 @@ class Overseer {
             free(d->tail);
         }
         erase_el(d->id);
-        // TODO: fix warning
-        // delete d;
         free(d);
     }
 
@@ -636,29 +625,7 @@ class Overseer {
     template <typename T> void update_path_dummy_erase(Dummy<T> *d) {
         // resolve and erase from catalog
         T *val = erase_path_dummy(d)->tail->val;
-        // TODO: isn't this the same as update_path_dummy?
-        Dummy<T> *curr = d;
-        while (curr->d1 != nullptr) {
-            short pick = (rand() % 3) + 1;
-            set_el(curr->id, pick);
-            switch (pick) {
-            case 1:
-                curr = curr->d1;
-                break;
-            case 2:
-                curr = curr->d2;
-                break;
-            case 3:
-                curr = curr->d3;
-                break;
-            }
-        }
-        set_el(curr->id, 0);
-        if (PERF_MODE)
-            curr->tail->val = (T *)malloc(sizeof(T));
-        _owncpy(curr->tail->val, val, sizeof(T));
-        if (PERF_MODE)
-            free(val);
+        update_path_dummy(d, val);
     }
 
     template <typename T> void update_path_dummy(Dummy<T> *d, T *val) {
@@ -717,129 +684,176 @@ class Overseer {
         // Create a jit function that will transform the id. This is scheme that
         // I devised to see it in C code see norg files
         init_jit(NULL);
-        jit1 = jit_new_state();
-        jit2 = jit_new_state();
-        jit3 = jit_new_state();
+        id_transform_jit_state = jit_new_state();
+        pick_encode_jit_state = jit_new_state();
+        pick_decode_jit_state = jit_new_state();
 
-        _jit_prolog(jit1);
-        _jit_getarg_l(jit1, _RAX, _jit_arg(jit1, jit_code_arg_l));
+        _jit_prolog(id_transform_jit_state);
+        _jit_getarg_l(id_transform_jit_state, _RAX,
+                      _jit_arg(id_transform_jit_state, jit_code_arg_l));
         // res = 0
-        _jit_new_node_www(jit1, jit_code_xorr, _R11, _R11, _R11);
+        _jit_new_node_www(id_transform_jit_state, jit_code_xorr, _R11, _R11,
+                          _R11);
 
         // res |= id << 60;
-        _jit_new_node_www(jit1, jit_code_lshi, _R10, _RAX, 60);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R10, _RAX,
+                          60);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
         // res |= id >> 60;
-        _jit_new_node_www(jit1, jit_code_lroti, _R10, _RAX, 4);
-        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0xF);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lroti, _R10, _RAX,
+                          4);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R10, _R10,
+                          0xF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
         // res |= ((id >> 4 & 0xFF) ^ (((id & 0xF) << 4) | (id >> 60 & 0xF))) <<
         // 4;
-        _jit_new_node_www(jit1, jit_code_rshi, _R10, _RAX, 4);
-        _jit_new_node_www(jit1, jit_code_andi, _R13, _R10, 0xFF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_rshi, _R10, _RAX, 4);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R13, _R10,
+                          0xFF);
         //
-        _jit_new_node_www(jit1, jit_code_andi, _R14, _RAX, 0xF);
-        _jit_new_node_www(jit1, jit_code_lshi, _R14, _R14, 4);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R14, _RAX,
+                          0xF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R14, _R14, 4);
         //
-        _jit_new_node_www(jit1, jit_code_lroti, _R10, _RAX, 4);
-        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0xF);
-        _jit_new_node_www(jit1, jit_code_orr, _R10, _R14, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lroti, _R10, _RAX,
+                          4);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R10, _R10,
+                          0xF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R10, _R14,
+                          _R10);
         //
-        _jit_new_node_www(jit1, jit_code_xorr, _R10, _R13, _R10);
-        _jit_new_node_www(jit1, jit_code_lshi, _R10, _R10, 4);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_xorr, _R10, _R13,
+                          _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R10, _R10, 4);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
         // res |= (id << 44 & 0x0F00000000000000);
-        _jit_new_node_www(jit1, jit_code_lshi, _R10, _RAX, 44);
-        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0x0F00000000000000);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R10, _RAX,
+                          44);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R10, _R10,
+                          0x0F00000000000000);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
         // res |= (id >> 44 & 0x000000000000F000);
-        _jit_new_node_www(jit1, jit_code_lroti, _R10, _RAX, 20);
-        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0x000000000000F000);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lroti, _R10, _RAX,
+                          20);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R10, _R10,
+                          0x000000000000F000);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
         // ulong f = (id >> 16 ^ id >> 24) & 0xFF;
         // res |= ((f ^ id >> 24) & 0xFF) << 24 | f << 16;
-        _jit_new_node_www(jit1, jit_code_rshi, _R13, _RAX, 16);
-        _jit_new_node_www(jit1, jit_code_andi, _R13, _R13, 0xFF);
-        _jit_new_node_www(jit1, jit_code_rshi, _R14, _RAX, 24);
-        _jit_new_node_www(jit1, jit_code_andi, _R14, _R14, 0xFF);
-        _jit_new_node_www(jit1, jit_code_xorr, _R10, _R13, _R14);
+        _jit_new_node_www(id_transform_jit_state, jit_code_rshi, _R13, _RAX,
+                          16);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R13, _R13,
+                          0xFF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_rshi, _R14, _RAX,
+                          24);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R14, _R14,
+                          0xFF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_xorr, _R10, _R13,
+                          _R14);
         //
-        _jit_new_node_www(jit1, jit_code_rshi, _R13, _RAX, 24);
-        _jit_new_node_www(jit1, jit_code_andi, _R13, _R13, 0xFF);
-        _jit_new_node_www(jit1, jit_code_xorr, _R13, _R10, _R13);
-        _jit_new_node_www(jit1, jit_code_lshi, _R13, _R13, 24);
-        _jit_new_node_www(jit1, jit_code_lshi, _R10, _R10, 16);
-        _jit_new_node_www(jit1, jit_code_orr, _R10, _R13, _R10);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_rshi, _R13, _RAX,
+                          24);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R13, _R13,
+                          0xFF);
+        _jit_new_node_www(id_transform_jit_state, jit_code_xorr, _R13, _R10,
+                          _R13);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R13, _R13,
+                          24);
+        _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R10, _R10,
+                          16);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R10, _R13,
+                          _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
         // res |= (id ^ 0x00FF00FF00000000) & 0x00FF00FF00000000;
-        _jit_new_node_www(jit1, jit_code_xori, _R10, _RAX, 0x00FF00FF00000000);
-        _jit_new_node_www(jit1, jit_code_andi, _R10, _R10, 0x00FF00FF00000000);
-        _jit_new_node_www(jit1, jit_code_orr, _R11, _R11, _R10);
+        _jit_new_node_www(id_transform_jit_state, jit_code_xori, _R10, _RAX,
+                          0x00FF00FF00000000);
+        _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R10, _R10,
+                          0x00FF00FF00000000);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R11, _R11,
+                          _R10);
 
-        _jit_retr(jit1, _R11, jit_code_retr_l); /*      retr   R2           */
+        _jit_retr(id_transform_jit_state, _R11,
+                  jit_code_retr_l); /*      retr   R2           */
 
-        transform_id = (pulful)_jit_emit(jit1);
-        _jit_clear_state(jit1);
+        transform_id = (pulful)_jit_emit(id_transform_jit_state);
+        _jit_clear_state(id_transform_jit_state);
 
         // pick encode
-        _jit_prolog(jit2);
-        _jit_getarg_l(jit2, _RAX, _jit_arg(jit2, jit_code_arg_l));
+        _jit_prolog(pick_encode_jit_state);
+        _jit_getarg_l(pick_encode_jit_state, _RAX,
+                      _jit_arg(pick_encode_jit_state, jit_code_arg_l));
         // 1) <<1
-        _jit_new_node_www(jit2, jit_code_lshi, _RAX, _RAX, 1);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_lshi, _RAX, _RAX, 1);
         // 2) copy bit 1 and 2 to 2 and 3
-        _jit_new_node_www(jit2, jit_code_andi, _R10, _RAX, 6);
-        _jit_new_node_www(jit2, jit_code_ori, _RAX, _RAX, 12);
-        _jit_new_node_www(jit2, jit_code_lshi, _R10, _R10, 1);
-        _jit_new_node_www(jit2, jit_code_ori, _R10, _R10, 3);
-        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R10);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andi, _R10, _RAX, 6);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_ori, _RAX, _RAX, 12);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_lshi, _R10, _R10, 1);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_ori, _R10, _R10, 3);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andr, _RAX, _RAX,
+                          _R10);
         // 3) nand 2 and 3 and and with rest
-        _jit_new_node_www(jit2, jit_code_andi, _R10, _RAX, 8);
-        _jit_new_node_www(jit2, jit_code_andi, _R11, _RAX, 4);
-        _jit_new_node_www(jit2, jit_code_lshi, _R11, _R11, 1);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andi, _R10, _RAX, 8);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andi, _R11, _RAX, 4);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_lshi, _R11, _R11, 1);
         // for 0, nor
-        _jit_new_node_www(jit2, jit_code_orr, _RBX, _R11, _R10);
-        _jit_new_node_www(jit2, jit_code_xori, _RBX, _RBX, 8);
-        _jit_new_node_www(jit2, jit_code_rroti, _RBX, _RBX, 3);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_orr, _RBX, _R11,
+                          _R10);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_xori, _RBX, _RBX, 8);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_rroti, _RBX, _RBX, 3);
         // nand = and+xor
-        _jit_new_node_www(jit2, jit_code_andr, _R11, _R10, _R11);
-        _jit_new_node_www(jit2, jit_code_xori, _R11, _R11, 8);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andr, _R11, _R10,
+                          _R11);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_xori, _R11, _R11, 8);
         //
-        _jit_new_node_www(jit2, jit_code_ori, _R11, _R11, 65527);
-        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R11);
-        _jit_new_node_www(jit2, jit_code_rshi, _R11, _R11, 1);
-        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R11);
-        _jit_new_node_www(jit2, jit_code_rshi, _R11, _R11, 1);
-        _jit_new_node_www(jit2, jit_code_andr, _RAX, _RAX, _R11);
-        _jit_new_node_www(jit2, jit_code_orr, _RAX, _RAX, _RBX);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_ori, _R11, _R11,
+                          65527);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andr, _RAX, _RAX,
+                          _R11);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_rshi, _R11, _R11, 1);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andr, _RAX, _RAX,
+                          _R11);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_rshi, _R11, _R11, 1);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_andr, _RAX, _RAX,
+                          _R11);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_orr, _RAX, _RAX,
+                          _RBX);
         // set 7thbit
-        _jit_new_node_www(jit2, jit_code_ori, _RAX, _RAX, 128);
-        _jit_retr(jit2, _RAX, jit_code_retr_l);
+        _jit_new_node_www(pick_encode_jit_state, jit_code_ori, _RAX, _RAX, 128);
+        _jit_retr(pick_encode_jit_state, _RAX, jit_code_retr_l);
 
-        encode_pick = (psfs)_jit_emit(jit2);
-        _jit_clear_state(jit2);
+        encode_pick = (psfs)_jit_emit(pick_encode_jit_state);
+        _jit_clear_state(pick_encode_jit_state);
 
         // pick decode
-        _jit_prolog(jit3);
-        _jit_getarg_l(jit3, _RAX, _jit_arg(jit3, jit_code_arg_l));
+        _jit_prolog(pick_decode_jit_state);
+        _jit_getarg_l(pick_decode_jit_state, _RAX,
+                      _jit_arg(pick_decode_jit_state, jit_code_arg_l));
 
-        _jit_new_node_ww(jit3, jit_code_ctzr, _RAX, _RAX);
-        _jit_new_node_ww(jit3, jit_code_popcntr, _RAX, _RAX);
+        _jit_new_node_ww(pick_decode_jit_state, jit_code_ctzr, _RAX, _RAX);
+        _jit_new_node_ww(pick_decode_jit_state, jit_code_popcntr, _RAX, _RAX);
 
-        _jit_retr(jit3, _RAX, jit_code_retr_l);
+        _jit_retr(pick_decode_jit_state, _RAX, jit_code_retr_l);
 
-        decode_pick = (psfs)_jit_emit(jit3);
-        _jit_clear_state(jit3);
+        decode_pick = (psfs)_jit_emit(pick_decode_jit_state);
+        _jit_clear_state(pick_decode_jit_state);
     }
+
     ~Overseer() {
-        _jit_destroy_state(jit1);
-        _jit_destroy_state(jit2);
-        _jit_destroy_state(jit3);
+        _jit_destroy_state(id_transform_jit_state);
+        _jit_destroy_state(pick_encode_jit_state);
+        _jit_destroy_state(pick_decode_jit_state);
         finish_jit();
     }
 
@@ -912,11 +926,6 @@ template <typename T> class Protected {
     void obfuscate(T val) { overseer->change_value(head, val); }
 
   public:
-    // Protected() { head = overseer->create_head<T>(MAX_LEN, false); }
-    // Protected(T val) {
-    //     head = overseer->create_head<T>(MAX_LEN, false);
-    //     overseer->change_value(head, val);
-    // }
     Protected(ChainOptions options = ChainOptions()) {
         head = overseer->create_head<T>(options, false);
     }
@@ -940,17 +949,6 @@ template <typename T> class Protected {
     //     printf("TODO MOVE assignment\n");
     //     return nullptr;
     // }
-    // Protected operator+(Protected add) {
-    //     T val = deobfuscate();
-    //     T valadd = add.deobfuscate();
-    //     Protected p(val + valadd);
-    //     return p;
-    // }
-    // Protected operator+(T add) {
-    //     T val = deobfuscate();
-    //     Protected p(val + add);
-    //     return p;
-    // }
     Protected &operator+=(T add) {
         obfuscate(deobfuscate() + add);
         return *this;
@@ -958,6 +956,39 @@ template <typename T> class Protected {
     Protected &operator++(int) { return this->operator+=(1); }
     Protected &operator-=(T add) { return this->operator+=(-add); }
     Protected &operator--(int) { return this->operator-=(1); }
+    // TODO:
+    Protected &operator*=(T mul) {
+        obfuscate(deobfuscate() * mul);
+        return *this;
+    }
+    Protected &operator/=(T div) {
+        obfuscate(deobfuscate() / div);
+        return *this;
+    }
+    Protected &operator%=(T mod) {
+        obfuscate(deobfuscate() % mod);
+        return *this;
+    }
+    Protected &operator&=(T andd) {
+        obfuscate(deobfuscate() & andd);
+        return *this;
+    }
+    Protected &operator|=(T orr) {
+        obfuscate(deobfuscate() & orr);
+        return *this;
+    }
+    Protected &operator<<=(T shift) {
+        obfuscate(deobfuscate() << shift);
+        return *this;
+    }
+    Protected &operator>>=(T shift) {
+        obfuscate(deobfuscate() >> shift);
+        return *this;
+    }
+    Protected &operator^=(T xorr) {
+        obfuscate(deobfuscate() ^ xorr);
+        return *this;
+    }
     // operator bool() const { return deobfuscate() != 0; }
 
     T val() { return deobfuscate(); }
@@ -975,84 +1006,6 @@ template <typename T> class Protected {
     operator const T() const { return deobfuscate(); }
 };
 
-// template <typename T> class ProtectedObj {
-//   private:
-//     DummyHead<T> *head;
-//     T &deobfuscate() const { return *overseer->resolve_head_val(head); }
-//     void obfuscate(T val) { overseer->change_value(head, val); }
-//     void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
-//
-//   public:
-//     ProtectedObj() { head = overseer->create_head<T>(MAX_LEN, true); }
-//     ProtectedObj(T val) {
-//         head = overseer->create_head<T>(MAX_LEN, true);
-//         obfuscate(val);
-//     }
-//     ProtectedObj(T val, ushort max_len) {
-//         head = overseer->create_head<T>(max_len, true);
-//         obfuscate(val);
-//     }
-//     ProtectedObj(ProtectedObj const &p) {
-//         head = overseer->create_head<T>(MAX_LEN, true);
-//         change_value(head, p.val());
-//     }
-//     // TODO:
-//     // ProtectedObj(ProtectedObj &&p) {
-//     //     printf("move construct\n");
-//     //     path = std::move(p.path);
-//     // }
-//     ~ProtectedObj() { overseer->free_head(head); }
-//
-//     ProtectedObj &operator=(T val) {
-//         // TODO: This doesn't not work for objects
-//         printf("LARS ERR\n");
-//         obfuscate(val);
-//         return *this;
-//     }
-//     ProtectedObj &operator=(T *val) {
-//         obfuscate(val);
-//         return *this;
-//     }
-//     ProtectedObj &operator=(ProtectedObj &val) {
-//         return operator=(val.deobfuscate());
-//     }
-//     // TODO:
-//     // ProtectedObj &operator=(ProtectedObj &&val) {
-//     //     path = std::move(val.path);
-//     //     printf("TODO MOVE assignment\n");
-//     //     return *this;
-//     // }
-//     T &dot() { return deobfuscate(); }
-//     const T &dot() const { return deobfuscate(); }
-//     // TODO: test this
-//     T &operator->() { return dot(); }
-//
-//     // ProtectedObj operator+(Protected add) {
-//     //     T val = deobfuscate();
-//     //     T valadd = add.deobfuscate();
-//     //     ProtectedObj p(val + valadd);
-//     //     return p;
-//     // }
-//     // ProtectedObj operator+(T add) {
-//     //     T val = deobfuscate();
-//     //     ProtectedObj p(val + add);
-//     //     return p;
-//     // }
-//     // ProtectedObj &operator+=(T add) {
-//     //     obfuscateAdd(add);
-//     //     return *this;
-//     // }
-//     // ProtectedObj &operator++(int) { return this->operator+=(1); }
-//     // ProtectedObj &operator-=(T add) { return this->operator+=(-add); }
-//     // ProtectedObj &operator--(int) { return this->operator-=(1); }
-//     // operator bool() const { return deobfuscate() != 0; }
-//     // Maybe this can work?
-//     // operator int() const { return deobfuscate(); }
-//
-//     T val() { return deobfuscate(); }
-//     const T val() const { return deobfuscate(); }
-//     void obfuscateAdd(T add) { obfuscate(deobfuscate() + add); }
-// };
 template <typename T> class Ptr {
   private:
     DummyHead<T> *head;
@@ -1062,7 +1015,6 @@ template <typename T> class Ptr {
     void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
 
   public:
-    // Ptr() { head = overseer->create_head<T>(MAX_LEN, true); }
     Ptr(ChainOptions options = ChainOptions()) {
         head = overseer->create_head<T>(options, true);
     }
@@ -1070,7 +1022,6 @@ template <typename T> class Ptr {
         head = overseer->create_head<T>(MAX_LEN, true);
         obfuscate(p.val());
     }
-    // Ptr &operator=(Ptr &&) = delete;
     // TODO:
     // Ptr(Ptr &&p) {
     //     printf("move construct\n");
@@ -1079,8 +1030,6 @@ template <typename T> class Ptr {
     ~Ptr() { overseer->free_head(head); }
 
     Ptr &operator=(T val) {
-        // TODO: This doesn't not work for objects
-        printf("LARS ERR\n");
         obfuscate(val);
         return *this;
     }
@@ -1095,13 +1044,14 @@ template <typename T> class Ptr {
     //     printf("TODO MOVE assignment\n");
     //     return *this;
     // }
-    // T &dot() { return deobfuscate(); }
-    // const T &dot() const { return deobfuscate(); }
     T *operator->() { return deobfuscate_ptr(); }
     const T *operator->() const { return deobfuscate_ptr(); }
 
     T &operator*() { return deobfuscate(); }
+    const T &operator*() const { return deobfuscate(); }
+
     operator T *() { return deobfuscate_ptr(); }
+    operator const T *() const { return deobfuscate_ptr(); }
 };
 
 // class TEST {

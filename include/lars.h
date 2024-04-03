@@ -170,7 +170,7 @@ template <typename T> class List {
             printf("empty\n");
             return;
         }
-        ListNode<unsigned long> *curr = head;
+        ListNode<ulong> *curr = head;
         while (curr != nullptr) {
             printf("id=%lu ", curr->val);
             curr = curr->next;
@@ -396,7 +396,7 @@ template <typename T> struct DummyTail {
 };
 
 template <typename T> struct Dummy {
-    unsigned long id;
+    ulong id;
     Dummy<T> *d1;
     Dummy<T> *d2;
     Dummy<T> *d3;
@@ -463,7 +463,7 @@ class Overseer {
         return d;
     }
 
-    template <typename T> void free_path_rec(Dummy<T> *d, unsigned long id) {
+    template <typename T> void free_path_rec(Dummy<T> *d, ulong id) {
         if (d->d1 != nullptr) {
             free_path_rec(d->d1, id);
             free_path_rec(d->d2, id);
@@ -544,8 +544,8 @@ class Overseer {
             std::map<ulong, List<ulong> *>::iterator it;
             for (it = due_for_path_update.begin();
                  it != due_for_path_update.end(); it++) {
-                printf("id=%lu { ", it->first);
-                ListNode<unsigned long> *log = it->second->head;
+                printf("id=%lu reason{ ", it->first);
+                ListNode<ulong> *log = it->second->head;
                 while (log != nullptr) {
                     printf("%lu ", log->val);
                     log = log->next;
@@ -752,26 +752,25 @@ class Overseer {
     }
 
     // TODO: ask to inline this?
-    short get_el(unsigned long id) {
+    short get_el(ulong id) {
         short pick = catalog[transform_id(id)];
         return decode_pick(pick);
     }
 
-    void set_el(unsigned long id, short pick) {
+    void set_el(ulong id, short pick) {
         catalog[transform_id(id)] = encode_pick(pick);
     }
 
-    void erase_el(unsigned long id) { catalog.erase(transform_id(id)); }
+    void erase_el(ulong id) { catalog.erase(transform_id(id)); }
 
     // id to correct path
-    // std::map<unsigned long, short> catalog;
-    std::map<unsigned long, short> catalog;
+    std::map<ulong, short> catalog;
     // update path on next resolve
     std::map<ulong, List<ulong> *> due_for_path_update;
-    unsigned long paths_created = 0;
-    unsigned long totalcounter = 0;
-    unsigned long alloc_sum = 0;
-    unsigned long time = 0;
+    ulong paths_created = 0;
+    ulong totalcounter = 0;
+    ulong alloc_sum = 0;
+    ulong time = 0;
     pulful transform_id;
     psfs encode_pick;
     psfs decode_pick;

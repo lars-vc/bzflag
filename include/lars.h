@@ -1,3 +1,7 @@
+///////////////////////////////////////////
+// protector
+///////////////////////////////////////////
+// TODO: Cooler name
 #pragma once
 #define LOGGING
 #ifdef LOGGING
@@ -9,7 +13,7 @@ extern "C" { // should be statically linked
 #include <lightning.h>
 }
 
-#include <cstring>  // needed for memcpy
+// #include <cstring>  // needed for owncpy
 #include <map>      // could be replaced with own map
 #include <stdlib.h> // needed for rand and malloc
 
@@ -27,74 +31,6 @@ typedef short (*psfs)(short);
 static jit_state_t *jit1;
 static jit_state_t *jit2;
 static jit_state_t *jit3;
-///////////////////////////////////////////
-// protector
-///////////////////////////////////////////
-// template <typename T> class vec {
-//   private:
-//     T **arr;
-//     unsigned long curr_len;
-//     unsigned long len;
-//
-//   public:
-//     vec() {
-//         curr_len = 0;
-//         len = 10;
-//         arr = new T *[len];
-//     }
-//     vec(int startlen) : len(startlen) {
-//         curr_len = 0;
-//         arr = new T[len];
-//     }
-//     ~vec() {
-//         for (unsigned long i = 0; i < curr_len; i++) {
-//             delete arr[i];
-//         }
-//         delete[] arr;
-//     }
-//     T &operator[](int index) { return *arr[index]; }
-//     const T &operator[](int index) const { return *arr[index]; }
-//     void push_back(T val) {
-//         if (curr_len == len) {
-//             len *= 2;
-//             T **tmp = new T *[len];
-//             for (unsigned long i = 0; i < curr_len; i++) {
-//                 tmp[i] = arr[i];
-//             }
-//             delete[] arr;
-//             arr = tmp;
-//         }
-//         arr[curr_len] = new T(val);
-//         curr_len++;
-//     }
-//     unsigned long size() { return curr_len; }
-//     unsigned long get_index(T val) {
-//         for (unsigned long i = 0; i < curr_len; i++) {
-//             if (*arr[i] == val) {
-//                 return i;
-//             }
-//         }
-//         return -1;
-//     }
-//     bool contains(T val) {
-//         for (unsigned long i = 0; i < curr_len; i++) {
-//             if (*arr[i] == val) {
-//                 return true;
-//             }
-//         }
-//         return false;
-//     }
-//     void erase(T val) {
-//         // TODO: FIX THIS, DOES NOT WORK
-//         for (unsigned long i = 0; i < curr_len - 1; i++) {
-//             if (*arr[i] == val) {
-//                 arr[i] = arr[i + 1];
-//                 i--;
-//             }
-//         }
-//         curr_len--;
-//     }
-// };
 ////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////DATASTRUCTURES///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +38,7 @@ template <typename T> class ListNode {
   public:
     T val;
     ListNode *next;
-    ListNode(T val) : val(val), next(nullptr) {}
+    ListNode(T val_) : val(val_), next(nullptr) {}
 };
 template <typename T> class List {
   public:
@@ -273,15 +209,23 @@ template <typename T> class List {
 template <typename T, typename Y> struct Tuple {
     T first;
     Y second;
-    Tuple(T first, Y second) : first(first), second(second) {}
+    Tuple(T first_, Y second_) : first(first_), second(second_) {}
 };
+
+inline void _owncpy(void *dest, void *src, size_t n) {
+    char *csrc = (char *)src;
+    char *cdest = (char *)dest;
+
+    for (uint i = 0; i < n; i++)
+        cdest[i] = csrc[i];
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 // NOTE: Can not accept types larger than 8 bytes
 template <typename T> class XOR {
   private:
     // TODO: rand is til intmax not longmax
-    unsigned long mask = rand();
+    unsigned long mask = (ulong)rand() * (ulong)rand();
     unsigned long obfus_val;
     T deobfuscate() const { return static_cast<T>(obfus_val ^ mask); }
     void obfuscate(T newval) {
@@ -423,11 +367,12 @@ struct ChainOptions {
     uint amount_children = 0;
 
     ChainOptions() {}
-    ChainOptions(ushort max_chain_length, uint max_time_til_update = TTLU_MAX,
-                 uint amount_children = 0)
-        : max_chain_length(max_chain_length),
-          max_time_til_update(max_time_til_update),
-          amount_children(amount_children) {}
+    // NOTE: added underscore to not have warning about shadowing
+    ChainOptions(ushort max_chain_length_, uint max_time_til_update_ = TTLU_MAX,
+                 uint amount_children_ = 0)
+        : max_chain_length(max_chain_length_),
+          max_time_til_update(max_time_til_update_),
+          amount_children(amount_children_) {}
 };
 
 class Overseer {
@@ -451,15 +396,10 @@ class Overseer {
                 d->tail->val = nullptr;
             else {
                 d->tail->val = (T *)malloc(sizeof(T));
-                // d->tail->val = new T();
                 alloc_sum += sizeof(T);
             }
         }
-        // d->tail->val = nullptr;
-        // TODO: LARS
-        // d->id = catalog.size();
-        // d->id = rand();
-        // d->tail->val = rand();
+
         return d;
     }
 
@@ -470,11 +410,6 @@ class Overseer {
             free_path_rec(d->d3, id);
         } else {
             if (!PERF_MODE) {
-                // if (obj) {
-                //     delete d->tail->val;
-                // } else {
-                // free(d->tail->val);
-                // }
                 if (d->id != id) {
                     free(d->tail->val);
                 }
@@ -483,7 +418,8 @@ class Overseer {
         }
         erase_el(d->id);
         // TODO: fix warning
-        delete d;
+        // delete d;
+        free(d);
     }
 
     template <typename T> void check_and_update_head(DummyHead<T> *head) {
@@ -508,7 +444,7 @@ class Overseer {
             }
 
             // add parent to update list
-            if (head->parent_id.val() != -1 &&
+            if (head->parent_id.val() != (ulong)-1 &&
                 !list->contains(head->parent_id.val())) {
                 List<ulong> *l = new List<ulong>();
                 l->push_back(head->d->id);
@@ -529,7 +465,7 @@ class Overseer {
 #ifdef LOGGING
             printf("Updated path: id=%lu", head->d->id);
 #endif
-            if (head->times_updated % 10 == 0 &&
+            if (head->times_updated % 10 == (ulong)0 &&
                 head->times_updated + START_LEN * 10 <= head->max_len * 10) {
                 // TODO: decreasing lengths
                 change_chain_len(head->d,
@@ -593,7 +529,7 @@ class Overseer {
     // TODO: decreasing lengths
     template <typename T> void change_chain_len(Dummy<T> *d, int len) {
         T *tmp = (T *)malloc(sizeof(T));
-        memcpy(tmp, resolve_dummy(d)->tail->val, sizeof(T));
+        _owncpy(tmp, resolve_dummy(d)->tail->val, sizeof(T));
         erase_path_dummy(d);
         change_chain_rec(d, 0, len);
         update_path_dummy(d, tmp);
@@ -608,7 +544,8 @@ class Overseer {
         Dummy<T> *d = create_path_rec<T>(0, len);
 
         parent_stack.push_back(d->id);
-        T *valptr = new T();
+        void *memory = malloc(sizeof(T));
+        T *valptr = new (memory) T();
         parent_stack.pop_back();
 
         update_path_dummy(d, valptr);
@@ -619,14 +556,12 @@ class Overseer {
 #endif
         // we do new and free to avoid calling the destructor of T which would
         // kill the protected<float>s it possesses
-        // free(valptr);
-        // try not to mix new and free
-        operator delete(valptr);
+        free(memory);
         return d;
     }
 
     template <typename T> void change_value_dummy(Dummy<T> *d, T val) {
-        memcpy(resolve_dummy(d)->tail->val, &val, sizeof(T));
+        _owncpy(resolve_dummy(d)->tail->val, &val, sizeof(T));
     }
 
     template <typename T> void free_path(Dummy<T> *d) {
@@ -721,7 +656,7 @@ class Overseer {
         set_el(curr->id, 0);
         if (PERF_MODE)
             curr->tail->val = (T *)malloc(sizeof(T));
-        memcpy(curr->tail->val, val, sizeof(T));
+        _owncpy(curr->tail->val, val, sizeof(T));
         if (PERF_MODE)
             free(val);
     }
@@ -746,7 +681,7 @@ class Overseer {
         set_el(curr->id, 0);
         if (PERF_MODE)
             curr->tail->val = (T *)malloc(sizeof(T));
-        memcpy(curr->tail->val, val, sizeof(T));
+        _owncpy(curr->tail->val, val, sizeof(T));
         if (PERF_MODE)
             free(val);
     }
@@ -960,7 +895,7 @@ class Overseer {
     // change of value
     template <typename T> void change_value(DummyHead<T> *head, T val) {
         Dummy<T> *d = resolve_head(head);
-        memcpy(d->tail->val, &val, sizeof(T));
+        _owncpy(d->tail->val, &val, sizeof(T));
     }
 
     void inc_time(long inc = 1) { time += inc; }
@@ -1169,24 +1104,24 @@ template <typename T> class Ptr {
     operator T *() { return deobfuscate_ptr(); }
 };
 
-class TEST {
-  public:
-    TEST() : val(2) {}
-    int val = 0;
-} typedef TEST;
-
-class TEST2 {
-  public:
-    TEST2() {}
-    int val = 0;
-
-    operator int() { return val; }
-    TEST2 &operator=(int val) {
-        this->val = val;
-        return *this;
-    }
-    TEST2 &operator=(TEST2 &val) { return operator=(val.val); }
-} typedef TEST2;
+// class TEST {
+//   public:
+//     TEST() : val(2) {}
+//     int val = 0;
+// } typedef TEST;
+//
+// class TEST2 {
+//   public:
+//     TEST2() {}
+//     int val = 0;
+//
+//     operator int() { return val; }
+//     TEST2 &operator=(int val) {
+//         this->val = val;
+//         return *this;
+//     }
+//     TEST2 &operator=(TEST2 &val) { return operator=(val.val); }
+// } typedef TEST2;
 
 // protectfunc inline int get_val_lars(ProtectedInt &val) { return val.val(); }
 // template <typename T> inline void set_val_lars(Protected<T> &val, int set) {

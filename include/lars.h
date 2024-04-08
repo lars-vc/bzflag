@@ -3,7 +3,7 @@
 ///////////////////////////////////////////
 // TODO: Cooler name
 #pragma once
-// #define LOGGING
+#define LOGGING
 #ifdef LOGGING
 #include <cstdio>
 #include <typeinfo>
@@ -366,32 +366,25 @@ class Overseer {
         Dummy<T> *d = new Dummy<T>();
         d->id = totalcounter;
         totalcounter++;
-        alloc_sum += sizeof(Dummy<T>);
         if (depth < max_depth) {
             d->d1 = create_path_rec<T>(depth + 1, max_depth);
             d->d2 = create_path_rec<T>(depth + 1, max_depth);
             d->d3 = create_path_rec<T>(depth + 1, max_depth);
         }
-        // d->tail = new DummyTail<T>();
-        // TODO: do we only initialize obj at maxdepth?
         if (depth == max_depth) {
             d->tail = (T *)malloc(sizeof(T));
-            alloc_sum += sizeof(T);
         }
 
         return d;
     }
 
-    template <typename T> void free_path_rec(Dummy<T> *d, ulong id) {
+    template <typename T> void free_path_rec(Dummy<T> *d) {
         if (d->d1 != nullptr) {
-            free_path_rec(d->d1, id);
-            free_path_rec(d->d2, id);
-            free_path_rec(d->d3, id);
+            free_path_rec(d->d1);
+            free_path_rec(d->d2);
+            free_path_rec(d->d3);
         } else {
-            if (d->id != id) {
-                free(d->tail);
-            }
-            // free(d->tail);
+            free(d->tail);
         }
         erase_el(d->id);
         delete d;
@@ -541,7 +534,7 @@ class Overseer {
 #ifdef LOGGING
         printf("Freed reg:        id=%lu\n", d->id);
 #endif
-        free_path_rec(d, -1);
+        free_path_rec(d);
     }
 
     template <typename T> void free_path_obj(Dummy<T> *d) {
@@ -550,9 +543,8 @@ class Overseer {
 #endif
         // call destructor of the obj
         Dummy<T> *special = resolve_dummy(d);
-        int id = special->id;
-        delete special->tail;
-        free_path_rec(d, id);
+        special->tail->~T();
+        free_path_rec(d);
     }
 
     template <typename T> Dummy<T> *resolve_dummy(Dummy<T> *d) {
@@ -651,8 +643,6 @@ class Overseer {
     std::map<ulong, List<ulong> *> due_for_path_update;
     ulong paths_created = 0;
     ulong totalcounter = 0;
-    // TODO: remove
-    ulong alloc_sum = 0;
     ulong time = 0;
     pulful transform_id;
     psfs encode_pick;
@@ -938,7 +928,6 @@ template <typename T> class Protected {
     Protected &operator++(int) { return this->operator+=(1); }
     Protected &operator-=(T add) { return this->operator+=(-add); }
     Protected &operator--(int) { return this->operator-=(1); }
-    // TODO:
     Protected &operator*=(T mul) {
         obfuscate(deobfuscate() * mul);
         return *this;

@@ -16,7 +16,6 @@ extern "C" { // should be statically linked
 #include <map>      // could be replaced with own map
 #include <stdlib.h> // needed for rand and malloc
 
-#define PERF_MODE 0
 #define TTLU_MAX 240
 #define START_LEN 3
 #define MAX_LEN 9
@@ -325,22 +324,17 @@ template <typename T> XOR<T> operator+(const T a, const XOR<T> &b) {
 }
 
 //////// POINTER CHAIN STUFF ////////
-// TODO: do we use this?
-template <typename T> struct DummyTail {
-    T *val;
-};
-
 template <typename T> struct Dummy {
     ulong id;
     Dummy<T> *d1;
     Dummy<T> *d2;
     Dummy<T> *d3;
-    DummyTail<T> *tail;
+    T *tail;
 };
 
 template <typename T> struct DummyHead {
     Dummy<T> *d;
-    // XOR these
+
     XOR<ulong> ttlu;
     XOR<uint> ttlu_max;
     XOR<ulong> times_updated;
@@ -381,14 +375,8 @@ class Overseer {
         // d->tail = new DummyTail<T>();
         // TODO: do we only initialize obj at maxdepth?
         if (depth == max_depth) {
-            d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
-            alloc_sum += sizeof(DummyTail<T>);
-            if (PERF_MODE)
-                d->tail->val = nullptr;
-            else {
-                d->tail->val = (T *)malloc(sizeof(T));
-                alloc_sum += sizeof(T);
-            }
+            d->tail = (T *)malloc(sizeof(T));
+            alloc_sum += sizeof(T);
         }
 
         return d;
@@ -400,15 +388,13 @@ class Overseer {
             free_path_rec(d->d2, id);
             free_path_rec(d->d3, id);
         } else {
-            if (!PERF_MODE) {
-                if (d->id != id) {
-                    free(d->tail->val);
-                }
+            if (d->id != id) {
+                free(d->tail);
             }
-            free(d->tail);
+            // free(d->tail);
         }
         erase_el(d->id);
-        free(d);
+        delete d;
     }
 
     template <typename T> void check_and_update_head(DummyHead<T> *head) {
@@ -496,12 +482,10 @@ class Overseer {
                 d->d3->id = totalcounter;
                 totalcounter++;
 
-                free(d->tail->val);
                 free(d->tail);
 
             } else if (currlen == len) {
-                d->tail = (DummyTail<T> *)malloc(sizeof(DummyTail<T>));
-                d->tail->val = (T *)malloc(sizeof(T));
+                d->tail = (T *)malloc(sizeof(T));
                 return;
             } else {
 #ifdef LOGGING
@@ -518,7 +502,7 @@ class Overseer {
     // TODO: decreasing lengths
     template <typename T> void change_chain_len(Dummy<T> *d, int len) {
         T *tmp = (T *)malloc(sizeof(T));
-        _owncpy(tmp, resolve_dummy(d)->tail->val, sizeof(T));
+        _owncpy(tmp, resolve_dummy(d)->tail, sizeof(T));
         erase_path_dummy(d);
         change_chain_rec(d, 0, len);
         update_path_dummy(d, tmp);
@@ -567,7 +551,7 @@ class Overseer {
         // call destructor of the obj
         Dummy<T> *special = resolve_dummy(d);
         int id = special->id;
-        delete special->tail->val;
+        delete special->tail;
         free_path_rec(d, id);
     }
 
@@ -592,7 +576,7 @@ class Overseer {
     }
 
     template <typename T> T *resolve_dummy_val(Dummy<T> *d) {
-        return resolve_dummy(d)->tail->val;
+        return resolve_dummy(d)->tail;
     }
 
     template <typename T> void update_path_dummy(Dummy<T> *d) {
@@ -624,7 +608,7 @@ class Overseer {
     }
     template <typename T> void update_path_dummy_erase(Dummy<T> *d) {
         // resolve and erase from catalog
-        T *val = erase_path_dummy(d)->tail->val;
+        T *val = erase_path_dummy(d)->tail;
         update_path_dummy(d, val);
     }
 
@@ -646,11 +630,7 @@ class Overseer {
             }
         }
         set_el(curr->id, 0);
-        if (PERF_MODE)
-            curr->tail->val = (T *)malloc(sizeof(T));
-        _owncpy(curr->tail->val, val, sizeof(T));
-        if (PERF_MODE)
-            free(val);
+        _owncpy(curr->tail, val, sizeof(T));
     }
 
     // TODO: ask to inline this?
@@ -671,6 +651,7 @@ class Overseer {
     std::map<ulong, List<ulong> *> due_for_path_update;
     ulong paths_created = 0;
     ulong totalcounter = 0;
+    // TODO: remove
     ulong alloc_sum = 0;
     ulong time = 0;
     pulful transform_id;
@@ -902,14 +883,14 @@ class Overseer {
         return resolve_dummy(head->d);
     }
     template <typename T> T *resolve_head_val(DummyHead<T> *head) {
-        return resolve_head(head)->tail->val;
+        return resolve_head(head)->tail;
     }
 
     // Could decide here whether to update chain or not based on knowledge of
     // change of value
     template <typename T> void change_value(DummyHead<T> *head, T val) {
         Dummy<T> *d = resolve_head(head);
-        _owncpy(d->tail->val, &val, sizeof(T));
+        _owncpy(d->tail, &val, sizeof(T));
     }
 
     void inc_time(long inc = 1) { time += inc; }

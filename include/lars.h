@@ -749,7 +749,7 @@ class Overseer {
                           _R10);
 
         // ulong f = (id >> 16 ^ id >> 24) & 0xFF;
-        // res |= ((f ^ id >> 24) & 0xFF) << 24 | f << 16;
+        // res |= ((f | id >> 24) & 0xFF) << 24 | f << 16;
         _jit_new_node_www(id_transform_jit_state, jit_code_rshi, _R13, _RAX,
                           16);
         _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R13, _R13,
@@ -765,8 +765,8 @@ class Overseer {
                           24);
         _jit_new_node_www(id_transform_jit_state, jit_code_andi, _R13, _R13,
                           0xFF);
-        _jit_new_node_www(id_transform_jit_state, jit_code_xorr, _R13, _R10,
-                          _R13);
+        _jit_new_node_www(id_transform_jit_state, jit_code_orr, _R13, _R10,
+                          _R13); // LARS
         _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R13, _R13,
                           24);
         _jit_new_node_www(id_transform_jit_state, jit_code_lshi, _R10, _R10,
@@ -918,6 +918,7 @@ class Overseer {
 // TODO: Does this work properly?
 inline Overseer *overseer = new Overseer();
 
+// NOTE: Type should be a primitive
 template <typename T> class Protected {
   private:
     DummyHead<T> *head;
@@ -1006,6 +1007,7 @@ template <typename T> class Protected {
     operator const T() const { return deobfuscate(); }
 };
 
+// NOTE: Type should be a class or struct
 template <typename T> class Ptr {
   private:
     DummyHead<T> *head;

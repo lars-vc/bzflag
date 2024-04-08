@@ -534,6 +534,11 @@ class Overseer {
 #ifdef LOGGING
         printf("Freed reg:        id=%lu\n", d->id);
 #endif
+        if (!due_for_path_update.count(d->id)) {
+            delete due_for_path_update[d->id];
+            due_for_path_update.erase(d->id);
+        }
+
         free_path_rec(d);
     }
 
@@ -544,6 +549,12 @@ class Overseer {
         // call destructor of the obj
         Dummy<T> *special = resolve_dummy(d);
         special->tail->~T();
+
+        if (!due_for_path_update.count(d->id)) {
+            delete due_for_path_update[d->id];
+            due_for_path_update.erase(d->id);
+        }
+
         free_path_rec(d);
     }
 

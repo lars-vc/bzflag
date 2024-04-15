@@ -1,7 +1,28 @@
-///////////////////////////////////////////
-// protector
-///////////////////////////////////////////
 // TODO: Cooler name
+///////////////////////////////////////////
+// Chain Protector
+///////////////////////////////////////////
+/*
+   Copyright (C) 2024 by Lars Van Cauter
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+*/
 #pragma once
 #define LOGGING
 #ifdef LOGGING
@@ -13,8 +34,8 @@ extern "C" { // should be statically linked
 #include <lightning.h>
 }
 
-#include <map>      // could be replaced with own map
-#include <stdlib.h> // needed for rand and malloc
+#include <map>      // could be replaced with own map implementation
+#include <stdlib.h> // needed for rand() and malloc()
 
 #define TTLU_MAX 240
 #define START_LEN 3
@@ -26,9 +47,11 @@ typedef unsigned short ushort;
 
 typedef ulong (*pulful)(ulong);
 typedef short (*psfs)(short);
+
 static jit_state_t *id_transform_jit_state;
 static jit_state_t *pick_encode_jit_state;
 static jit_state_t *pick_decode_jit_state;
+
 ////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////DATASTRUCTURES///////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -222,9 +245,9 @@ inline void _owncpy(void *dest, void *src, size_t n) {
 // NOTE: Can not accept types larger than 8 bytes
 template <typename T> class XOR {
   private:
-    // TODO: rand is til intmax not longmax
     unsigned long mask = (ulong)rand() * (ulong)rand();
     unsigned long obfus_val;
+
     T deobfuscate() const { return static_cast<T>(obfus_val ^ mask); }
     void obfuscate(T newval) {
         obfus_val = mask ^ static_cast<unsigned long>(newval);
@@ -309,8 +332,6 @@ template <typename T> class XOR {
     template <typename C> XOR<T> operator*(XOR<C> comp) {
         return XOR<T>(deobfuscate() * comp.val());
     }
-    // Maybe this can work?
-    // operator int() const { return deobfuscate(); }
 
     T val() { return deobfuscate(); }
     const T val() const { return deobfuscate(); }
@@ -323,7 +344,9 @@ template <typename T> XOR<T> operator+(const T a, const XOR<T> &b) {
     return XOR<T>(a + b.val());
 }
 
-//////// POINTER CHAIN STUFF ////////
+////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////POINTERCHAINING//////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 template <typename T> struct Dummy {
     ulong id;
     Dummy<T> *d1;
@@ -435,7 +458,7 @@ class Overseer {
 #endif
             if (head->times_updated % 10 == (ulong)0 &&
                 head->times_updated + START_LEN * 10 <= head->max_len * 10) {
-                // TODO: decreasing lengths
+                // TODO: decreasing lengths?
                 change_chain_len(head->d,
                                  (head->times_updated / 10) + START_LEN);
 #ifdef LOGGING
@@ -492,7 +515,6 @@ class Overseer {
         change_chain_rec(d->d3, currlen + 1, len);
     }
 
-    // TODO: decreasing lengths
     template <typename T> void change_chain_len(Dummy<T> *d, int len) {
         T *tmp = (T *)malloc(sizeof(T));
         _owncpy(tmp, resolve_dummy(d)->tail, sizeof(T));
@@ -636,7 +658,6 @@ class Overseer {
         _owncpy(curr->tail, val, sizeof(T));
     }
 
-    // TODO: ask to inline this?
     short get_el(ulong id) {
         short pick = catalog[transform_id(id)];
         return decode_pick(pick);
@@ -662,7 +683,6 @@ class Overseer {
     List<ulong> child_stack;
     List<ulong> parent_stack;
 
-  public:
     Overseer() {
         // Create a jit function that will transform the id. This is scheme that
         // I devised to see it in C code see norg files
@@ -840,6 +860,7 @@ class Overseer {
         finish_jit();
     }
 
+  public:
     template <typename T>
     DummyHead<T> *create_head(ChainOptions options, bool is_obj) {
         DummyHead<T> *head = new DummyHead<T>();
@@ -884,6 +905,7 @@ class Overseer {
         check_and_update_head(head);
         return resolve_dummy(head->d);
     }
+
     template <typename T> T *resolve_head_val(DummyHead<T> *head) {
         return resolve_head(head)->tail;
     }
@@ -896,30 +918,102 @@ class Overseer {
     }
 
     void inc_time(long inc = 1) { time += inc; }
+
+    static Overseer &get() {
+        static Overseer overseer;
+        return overseer;
+    }
 };
 
-// TODO: Does this work properly?
-inline Overseer *overseer = new Overseer();
+inline void increment_time(long dt = 1) { Overseer::get().inc_time(dt); }
+// inline float xorUnsignedLongAndFloat(unsigned long ulongValue,
+//                                      float floatValue) {
+//     // Reinterpret the float as an unsigned long
+//     unsigned long *floatAsULong = (unsigned long *)&floatValue;
+//
+//     // XOR the two unsigned long integers
+//     unsigned long resultULong = ulongValue ^ *floatAsULong;
+//
+//     // Reinterpret the result as a float
+//     float resultFloat = *(float *)&resultULong;
+//
+//     return resultFloat;
+// }
+// inline float xorUnsignedLongAndFloat(unsigned long ulongValue,
+//                                      float floatValue) {
+//     // Reinterpret the float as an unsigned long
+//     int *floatAsULong = (int *)&floatValue;
+//
+//     // XOR the two unsigned long integers
+//     int resultULong = ulongValue ^ *floatAsULong;
+//
+//     // Reinterpret the result as a float
+//     float resultFloat = *(float *)&resultULong;
+//
+//     return resultFloat;
+// }
+template <typename T> inline T _xormask(unsigned long mask, T val) {
+    switch (sizeof(T)) {
+    case sizeof(char): {
+        char store;
+        _owncpy(&store, &val, sizeof(char));
+        store ^= mask;
+        T res;
+        _owncpy(&res, &store, sizeof(char));
+        return res;
+    }
+    case sizeof(short): {
+        short store;
+        _owncpy(&store, &val, sizeof(short));
+        store ^= mask;
+        T res;
+        _owncpy(&res, &store, sizeof(short));
+        return res;
+    }
+    case sizeof(int): {
+        int store;
+        _owncpy(&store, &val, sizeof(int));
+        store ^= mask;
+        T res;
+        _owncpy(&res, &store, sizeof(int));
+        return res;
+    }
+    case sizeof(long): {
+        long store;
+        _owncpy(&store, &val, sizeof(long));
+        store ^= mask;
+        T res;
+        _owncpy(&res, &store, sizeof(long));
+        return res;
+    }
+    default:
+        return val;
+    };
+}
 
-// NOTE: Type should be a primitive
+// NOTE: Type T should be a primitive
 template <typename T> class Protected {
   private:
     DummyHead<T> *head;
-    T deobfuscate() const { return *overseer->resolve_head_val(head); }
-    T *deobfuscate_ptr() const { return overseer->resolve_head_val(head); }
-    void obfuscate(T val) { overseer->change_value(head, val); }
+    ulong mask = (ulong)rand() * (ulong)rand();
+
+    T deobfuscate() const {
+        return _xormask(mask, *Overseer::get().resolve_head_val(head));
+    }
+    void obfuscate(T val) {
+        Overseer::get().change_value(head, _xormask(mask, val));
+    }
 
   public:
     Protected(ChainOptions options = ChainOptions()) {
-        head = overseer->create_head<T>(options, false);
+        head = Overseer::get().create_head<T>(options, false);
     }
     Protected(Protected<T> const &p) {
-        head = overseer->create_head<T>(ChainOptions(), false);
+        head = Overseer::get().create_head<T>(ChainOptions(), false);
         obfuscate(p.val());
     }
-    // TODO: LARS
-    // Protected(Protected &&p) { printf("TODO MOVE CONSTRUCTOR\n"); }
-    ~Protected() { overseer->free_head(head); }
+
+    ~Protected() { Overseer::get().free_head(head); }
 
     Protected &operator=(T val) {
         obfuscate(val);
@@ -928,11 +1022,7 @@ template <typename T> class Protected {
     Protected &operator=(Protected &val) {
         return operator=(val.deobfuscate());
     }
-    // TODO:
-    // Protected &operator=(Protected &&val) {
-    //     printf("TODO MOVE assignment\n");
-    //     return nullptr;
-    // }
+
     Protected &operator+=(T add) {
         obfuscate(deobfuscate() + add);
         return *this;
@@ -972,7 +1062,6 @@ template <typename T> class Protected {
         obfuscate(deobfuscate() ^ xorr);
         return *this;
     }
-    // operator bool() const { return deobfuscate() != 0; }
 
     T val() { return deobfuscate(); }
     const T val() const { return deobfuscate(); }
@@ -980,54 +1069,49 @@ template <typename T> class Protected {
     // NOTE: Only use this when you know what you are doing, as this could
     // induce semi undefined behavior
     // also these conflicht with applying XOR protection to this
-    T *ref() { return deobfuscate_ptr(); }
-    T *operator&() { return ref(); }
-    T *ref() const { return deobfuscate_ptr(); }
-    T *operator&() const { return ref(); }
+    // T *ref() { return deobfuscate_ptr(); }
+    // T *operator&() { return ref(); }
+    // T *ref() const { return deobfuscate_ptr(); }
+    // T *operator&() const { return ref(); }
 
     operator T() { return deobfuscate(); }
     operator const T() const { return deobfuscate(); }
 };
 
-// NOTE: Type should be a class or struct
-template <typename T> class Ptr {
+// NOTE: Type T should be a class or struct
+template <typename T> class ProtectedPtr {
   private:
     DummyHead<T> *head;
-    T &deobfuscate() const { return *overseer->resolve_head_val(head); }
-    T *deobfuscate_ptr() const { return overseer->resolve_head_val(head); }
-    void obfuscate(T val) { overseer->change_value(head, val); }
-    void obfuscate(T *ptr) { overseer->change_value(head, *ptr); }
+    T &deobfuscate() const { return *Overseer::get().resolve_head_val(head); }
+    T *deobfuscate_ptr() const {
+        return Overseer::get().resolve_head_val(head);
+    }
+    void obfuscate(T val) { Overseer::get().change_value(head, val); }
+    void obfuscate(T *ptr) { Overseer::get().change_value(head, *ptr); }
 
   public:
-    Ptr(ChainOptions options = ChainOptions()) {
-        head = overseer->create_head<T>(options, true);
+    ProtectedPtr(ChainOptions options = ChainOptions()) {
+        head = Overseer::get().create_head<T>(options, true);
     }
-    Ptr(Ptr const &p) {
-        head = overseer->create_head<T>(MAX_LEN, true);
+    ProtectedPtr(ProtectedPtr const &p) {
+        head = Overseer::get().create_head<T>(MAX_LEN, true);
         obfuscate(p.val());
     }
-    // TODO:
-    // Ptr(Ptr &&p) {
-    //     printf("move construct\n");
-    //     path = std::move(p.path);
-    // }
-    ~Ptr() { overseer->free_head(head); }
 
-    Ptr &operator=(T val) {
+    ~ProtectedPtr() { Overseer::get().free_head(head); }
+
+    ProtectedPtr &operator=(T val) {
         obfuscate(val);
         return *this;
     }
-    Ptr &operator=(T *val) {
+    ProtectedPtr &operator=(T *val) {
         obfuscate(val);
         return *this;
     }
-    Ptr &operator=(Ptr &val) { return operator=(val.deobfuscate()); }
-    // TODO:
-    // Ptr &operator=(Ptr &&val) {
-    //     path = std::move(val.path);
-    //     printf("TODO MOVE assignment\n");
-    //     return *this;
-    // }
+    ProtectedPtr &operator=(ProtectedPtr &val) {
+        return operator=(val.deobfuscate());
+    }
+
     T *operator->() { return deobfuscate_ptr(); }
     const T *operator->() const { return deobfuscate_ptr(); }
 
@@ -1037,34 +1121,4 @@ template <typename T> class Ptr {
     operator T *() { return deobfuscate_ptr(); }
     operator const T *() const { return deobfuscate_ptr(); }
 };
-
-// class TEST {
-//   public:
-//     TEST() : val(2) {}
-//     int val = 0;
-// } typedef TEST;
-//
-// class TEST2 {
-//   public:
-//     TEST2() {}
-//     int val = 0;
-//
-//     operator int() { return val; }
-//     TEST2 &operator=(int val) {
-//         this->val = val;
-//         return *this;
-//     }
-//     TEST2 &operator=(TEST2 &val) { return operator=(val.val); }
-// } typedef TEST2;
-
-// protectfunc inline int get_val_lars(ProtectedInt &val) { return val.val(); }
-// template <typename T> inline void set_val_lars(Protected<T> &val, int set) {
-//     printf("set_val_lars: %d, %d\n", val.val(), set);
-//     val = set;
-// }
-
-// inline void add_val_lars(ProtectedInt &val, int add) {
-//     printf("add_val_lars: %d, %d\n", val.val(), add);
-//     val += add;
-// }
 ////////////////////////////////////////////////////////////////////////////////////

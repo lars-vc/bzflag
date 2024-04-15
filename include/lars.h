@@ -643,7 +643,8 @@ class Overseer {
     }
 
     void set_el(ulong id, short pick) {
-        catalog[transform_id(id)] = encode_pick(pick);
+        short r = rand() << 7;
+        catalog[transform_id(id)] = r | encode_pick(pick);
     }
 
     void erase_el(ulong id) { catalog.erase(transform_id(id)); }

@@ -18,7 +18,7 @@
 #define BZF_TANK_SCENE_NODE_H
 
 #include "common.h"
-#include "lars.h"
+#include "pcr.h"
 #include "SceneNode.h"
 #include "OpenGLLight.h"
 #include "TankGeometryMgr.h"

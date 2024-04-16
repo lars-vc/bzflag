@@ -14,7 +14,7 @@
 #define BZF_PLAYERSTATE_H
 
 #include "common.h"
-#include "lars.h"
+#include "pcr.h"
 
 class PlayerState {
   public:

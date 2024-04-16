@@ -14,7 +14,7 @@
 int LARSCOUNT = 0;
 // interface header
 #include "playing.h"
-#include "lars.h"
+#include "pcr.h"
 
 // system includes
 #ifdef _WIN32

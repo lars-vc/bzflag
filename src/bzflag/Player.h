@@ -14,7 +14,7 @@
 #define __PLAYER_H__
 
 #include "common.h"
-#include "lars.h"
+#include "pcr.h"
 
 /* system headers */
 #include <string>

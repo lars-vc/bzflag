@@ -12,7 +12,7 @@
 
 /* interface header */
 #include "LocalPlayer.h"
-#include "lars.h"
+#include "pcr.h"
 
 /* common implementation headers */
 #include "CommandManager.h"

@@ -39,12 +39,16 @@ const float smallMaxAngVel = 0.001f * smallScale;
 
 PlayerState::PlayerState()
     : order(0), status(DeadStatus), azimuth(0.0f), angVel(0.0f) {
-    printf("TEST\n");
+    // printf("TEST\n");
     pos[0] = pos[1] = pos[2] = 0.0f;
 
     // NOTE: this could be the way we move forward
 
     // Ptr<TEST> t{};
+    // PcrVal<int> t{};
+    // t = 5;
+    // double w = (double)t;
+    // printf("TEST: %f\n", w);
     // TEST *t2 = new TEST();
     // t2->val = 6;
     // memcpy(t, t2, sizeof(t));

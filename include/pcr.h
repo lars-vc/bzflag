@@ -23,8 +23,8 @@
    SOFTWARE.
 */
 #pragma once
-#define LOGGING
-#ifdef LOGGING
+// #define PCRDEBUG
+#ifdef PCRDEBUG
 #include <cstdio>
 #include <typeinfo>
 #endif
@@ -36,9 +36,9 @@ extern "C" { // should be statically linked
 #include <map>      // could be replaced with own map implementation
 #include <stdlib.h> // needed for rand() and malloc()
 
-#define TTLU_MAX 240
-#define START_LEN 3
-#define MAX_LEN 9
+#define PCR_TTLU_MAX 100
+#define PCR_START_LEN 3
+#define PCR_MAX_LEN 8
 
 typedef unsigned long ulong;
 typedef unsigned int uint;
@@ -119,7 +119,7 @@ template <typename T> class List {
         }
     }
 
-#ifdef LOGGING
+#ifdef PCRDEBUG
     void print() {
         printf("list: ");
         if (head == nullptr) {
@@ -241,7 +241,7 @@ inline void _owncpy(void *dest, void *src, size_t n) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-// NOTE: Can not accept types larger than 8 bytes
+// NOTE: Cannot accept types larger than 8 bytes
 template <typename T> class XOR {
   private:
     unsigned long mask = (ulong)rand() * (ulong)rand();
@@ -369,13 +369,14 @@ template <typename T> struct DummyHead {
 };
 
 struct ChainOptions {
-    ushort max_chain_length = MAX_LEN;
-    uint max_time_til_update = TTLU_MAX;
+    ushort max_chain_length = PCR_MAX_LEN;
+    uint max_time_til_update = PCR_TTLU_MAX;
     uint amount_children = 0;
 
     ChainOptions() {}
     // NOTE: added underscore to not have warning about shadowing
-    ChainOptions(ushort max_chain_length_, uint max_time_til_update_ = TTLU_MAX,
+    ChainOptions(ushort max_chain_length_,
+                 uint max_time_til_update_ = PCR_TTLU_MAX,
                  uint amount_children_ = 0)
         : max_chain_length(max_chain_length_),
           max_time_til_update(max_time_til_update_),
@@ -452,20 +453,21 @@ class Overseer {
 
             // Make chain longer over time
             // every 10th updated increase to a max len of 10
-#ifdef LOGGING
+#ifdef PCRDEBUG
             printf("Updated path: id=%lu", head->d->id);
 #endif
             if (head->times_updated % 10 == (ulong)0 &&
-                head->times_updated + START_LEN * 10 <= head->max_len * 10) {
+                head->times_updated + PCR_START_LEN * 10 <=
+                    head->max_len * 10) {
                 // TODO: decreasing lengths?
                 change_chain_len(head->d,
-                                 (head->times_updated / 10) + START_LEN);
-#ifdef LOGGING
+                                 (head->times_updated / 10) + PCR_START_LEN);
+#ifdef PCRDEBUG
                 printf(" and increased length to %ld",
-                       (head->times_updated.val() / 10) + START_LEN);
+                       (head->times_updated.val() / 10) + PCR_START_LEN);
 #endif
             }
-#ifdef LOGGING
+#ifdef PCRDEBUG
             printf("\nlist: ");
             std::map<ulong, List<ulong> *>::iterator it;
             for (it = due_for_path_update.begin();
@@ -503,7 +505,7 @@ class Overseer {
                 d->tail = (T *)malloc(sizeof(T));
                 return;
             } else {
-#ifdef LOGGING
+#ifdef PCRDEBUG
                 printf("ERROR: currlen > len, %d, %d\n", currlen, len);
 #endif
                 return;
@@ -537,7 +539,7 @@ class Overseer {
 
         update_path_dummy(d, valptr);
         paths_created++;
-#ifdef LOGGING
+#ifdef PCRDEBUG
         printf("Created path: id=%lu name=%s count=%lu\n", d->id,
                typeid(*valptr).name(), paths_created);
 #endif
@@ -552,8 +554,8 @@ class Overseer {
     }
 
     template <typename T> void free_path(Dummy<T> *d) {
-#ifdef LOGGING
-        printf("Freed reg:        id=%lu\n", d->id);
+#ifdef PCRDEBUG
+        printf("Freed val:        id=%lu\n", d->id);
 #endif
         if (!due_for_path_update.count(d->id)) {
             delete due_for_path_update[d->id];
@@ -564,8 +566,8 @@ class Overseer {
     }
 
     template <typename T> void free_path_obj(Dummy<T> *d) {
-#ifdef LOGGING
-        printf("Freed obj:        id=%lu\n", d->id);
+#ifdef PCRDEBUG
+        printf("Freed ptr:        id=%lu\n", d->id);
 #endif
         // call destructor of the obj
         Dummy<T> *special = resolve_dummy(d);
@@ -866,14 +868,14 @@ class Overseer {
         head->ttlu_max = options.max_time_til_update;
         head->times_updated = 0;
         head->is_obj = is_obj;
-        head->max_len = options.max_chain_length > START_LEN
+        head->max_len = options.max_chain_length > PCR_START_LEN
                             ? options.max_chain_length
-                            : START_LEN;
+                            : PCR_START_LEN;
         if (parent_stack.is_empty())
             head->parent_id = -1;
         else
             head->parent_id = parent_stack.peek_back();
-        head->d = create_path<T>(START_LEN); // this will create children
+        head->d = create_path<T>(PCR_START_LEN); // this will create children
         head->child_ids = List<ulong>();
         if (!child_stack.is_empty()) {
             for (uint i = 0; i < options.amount_children; i++) {
@@ -924,33 +926,9 @@ class Overseer {
     }
 };
 
-inline void increment_time(long dt = 1) { Overseer::get().inc_time(dt); }
-// inline float xorUnsignedLongAndFloat(unsigned long ulongValue,
-//                                      float floatValue) {
-//     // Reinterpret the float as an unsigned long
-//     unsigned long *floatAsULong = (unsigned long *)&floatValue;
-//
-//     // XOR the two unsigned long integers
-//     unsigned long resultULong = ulongValue ^ *floatAsULong;
-//
-//     // Reinterpret the result as a float
-//     float resultFloat = *(float *)&resultULong;
-//
-//     return resultFloat;
-// }
-// inline float xorUnsignedLongAndFloat(unsigned long ulongValue,
-//                                      float floatValue) {
-//     // Reinterpret the float as an unsigned long
-//     int *floatAsULong = (int *)&floatValue;
-//
-//     // XOR the two unsigned long integers
-//     int resultULong = ulongValue ^ *floatAsULong;
-//
-//     // Reinterpret the result as a float
-//     float resultFloat = *(float *)&resultULong;
-//
-//     return resultFloat;
-// }
+// Increment the time of the protection
+inline void pcr_increment_time(long dt = 1) { Overseer::get().inc_time(dt); }
+
 template <typename T> inline T _xormask(unsigned long mask, T val) {
     switch (sizeof(T)) {
     case sizeof(char): {
@@ -991,7 +969,7 @@ template <typename T> inline T _xormask(unsigned long mask, T val) {
 }
 
 // NOTE: Type T should be a primitive
-template <typename T> class Protected {
+template <typename T> class PcrVal {
   private:
     DummyHead<T> *head;
     ulong mask = (ulong)rand() * (ulong)rand();
@@ -1004,60 +982,58 @@ template <typename T> class Protected {
     }
 
   public:
-    Protected(ChainOptions options = ChainOptions()) {
+    PcrVal(ChainOptions options = ChainOptions()) {
         head = Overseer::get().create_head<T>(options, false);
     }
-    Protected(Protected<T> const &p) {
+    PcrVal(PcrVal<T> const &p) {
         head = Overseer::get().create_head<T>(ChainOptions(), false);
         obfuscate(p.val());
     }
 
-    ~Protected() { Overseer::get().free_head(head); }
+    ~PcrVal() { Overseer::get().free_head(head); }
 
-    Protected &operator=(T val) {
+    PcrVal &operator=(T val) {
         obfuscate(val);
         return *this;
     }
-    Protected &operator=(Protected &val) {
-        return operator=(val.deobfuscate());
-    }
+    PcrVal &operator=(PcrVal &val) { return operator=(val.deobfuscate()); }
 
-    Protected &operator+=(T add) {
+    PcrVal &operator+=(T add) {
         obfuscate(deobfuscate() + add);
         return *this;
     }
-    Protected &operator++(int) { return this->operator+=(1); }
-    Protected &operator-=(T add) { return this->operator+=(-add); }
-    Protected &operator--(int) { return this->operator-=(1); }
-    Protected &operator*=(T mul) {
+    PcrVal &operator++(int) { return this->operator+=(1); }
+    PcrVal &operator-=(T add) { return this->operator+=(-add); }
+    PcrVal &operator--(int) { return this->operator-=(1); }
+    PcrVal &operator*=(T mul) {
         obfuscate(deobfuscate() * mul);
         return *this;
     }
-    Protected &operator/=(T div) {
+    PcrVal &operator/=(T div) {
         obfuscate(deobfuscate() / div);
         return *this;
     }
-    Protected &operator%=(T mod) {
+    PcrVal &operator%=(T mod) {
         obfuscate(deobfuscate() % mod);
         return *this;
     }
-    Protected &operator&=(T andd) {
+    PcrVal &operator&=(T andd) {
         obfuscate(deobfuscate() & andd);
         return *this;
     }
-    Protected &operator|=(T orr) {
+    PcrVal &operator|=(T orr) {
         obfuscate(deobfuscate() & orr);
         return *this;
     }
-    Protected &operator<<=(T shift) {
+    PcrVal &operator<<=(T shift) {
         obfuscate(deobfuscate() << shift);
         return *this;
     }
-    Protected &operator>>=(T shift) {
+    PcrVal &operator>>=(T shift) {
         obfuscate(deobfuscate() >> shift);
         return *this;
     }
-    Protected &operator^=(T xorr) {
+    PcrVal &operator^=(T xorr) {
         obfuscate(deobfuscate() ^ xorr);
         return *this;
     }
@@ -1075,12 +1051,14 @@ template <typename T> class Protected {
 
     operator T() { return deobfuscate(); }
     operator const T() const { return deobfuscate(); }
+    // template <typename C> operator C() { return deobfuscate(); }
 };
 
 // NOTE: Type T should be a class or struct
-template <typename T> class ProtectedPtr {
+template <typename T> class PcrPtr {
   private:
     DummyHead<T> *head;
+    bool allocated = false;
     T &deobfuscate() const { return *Overseer::get().resolve_head_val(head); }
     T *deobfuscate_ptr() const {
         return Overseer::get().resolve_head_val(head);
@@ -1089,27 +1067,28 @@ template <typename T> class ProtectedPtr {
     void obfuscate(T *ptr) { Overseer::get().change_value(head, *ptr); }
 
   public:
-    ProtectedPtr(ChainOptions options = ChainOptions()) {
+    PcrPtr(ChainOptions options = ChainOptions()) {
         head = Overseer::get().create_head<T>(options, true);
     }
-    ProtectedPtr(ProtectedPtr const &p) {
-        head = Overseer::get().create_head<T>(MAX_LEN, true);
+    PcrPtr(PcrPtr const &p) {
+        head = Overseer::get().create_head<T>(PCR_MAX_LEN, true);
         obfuscate(p.val());
     }
 
-    ~ProtectedPtr() { Overseer::get().free_head(head); }
+    ~PcrPtr() {
+        if (!allocated)
+            Overseer::get().free_head(head);
+    }
 
-    ProtectedPtr &operator=(T val) {
+    PcrPtr &operator=(T val) {
         obfuscate(val);
         return *this;
     }
-    ProtectedPtr &operator=(T *val) {
+    PcrPtr &operator=(T *val) {
         obfuscate(val);
         return *this;
     }
-    ProtectedPtr &operator=(ProtectedPtr &val) {
-        return operator=(val.deobfuscate());
-    }
+    PcrPtr &operator=(PcrPtr &val) { return operator=(val.deobfuscate()); }
 
     T *operator->() { return deobfuscate_ptr(); }
     const T *operator->() const { return deobfuscate_ptr(); }
@@ -1119,5 +1098,8 @@ template <typename T> class ProtectedPtr {
 
     operator T *() { return deobfuscate_ptr(); }
     operator const T *() const { return deobfuscate_ptr(); }
+
+    void allocate() { allocated = true; }
+    void deallocate() { Overseer::get().free_head(head); }
 };
 ////////////////////////////////////////////////////////////////////////////////////

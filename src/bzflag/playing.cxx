@@ -6488,7 +6488,7 @@ static void playingLoop() {
         GameTime::setStepTime();
 
         // LARS
-        increment_time();
+        pcr_increment_time();
 
         // get delta time
         TimeKeeper prevTime = TimeKeeper::getTick();

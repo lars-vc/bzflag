@@ -72,8 +72,8 @@ class Player {
     FlagType *getFlag() const;
     long getOrder() const;
     short getStatus() const;
-    Protected<float> *getPosition();
-    const Protected<float> *getPosition() const;
+    PcrVal<float> *getPosition();
+    const PcrVal<float> *getPosition() const;
     float getAngle() const;
     const float *getForward() const;
     const float *getVelocity() const;
@@ -308,7 +308,7 @@ class Player {
 
     // highly dynamic data
   public:
-    ProtectedPtr<PlayerState> state{ChainOptions{9, 240, 3}};
+    PcrPtr<PlayerState> state{ChainOptions{9, 240, 3}};
     // ProtectedObj<PlayerState> state;
     // PlayerState state;
 
@@ -330,7 +330,7 @@ class Player {
     TimeKeeper inputTime;         // time of input
     float inputTimestamp;         // input timestamp of sender
     int inputStatus;              // tank status
-    Protected<float> inputPos[3]; // tank position
+    PcrVal<float> inputPos[3]; // tank position
     float inputVel[3];            // tank velocity
     float inputAzimuth;           // direction tank is pointing
     float inputAngVel;            // tank turn rate
@@ -338,7 +338,7 @@ class Player {
     float inputRelVel[2];         // relative velocity
     float inputRelSpeed;          // relative speed
     float inputRelAngVel;         // relative angular velocity
-    Protected<float> inputTurnCenter[2];     // tank turn center
+    PcrVal<float> inputTurnCenter[2];     // tank turn center
     float inputTurnVector[2];     // tank turn vector
     int inputPhyDrv;              // physics driver
 
@@ -381,8 +381,8 @@ inline long Player::getOrder() const { return state->order; }
 
 inline short Player::getStatus() const { return state->status; }
 
-inline Protected<float> *Player::getPosition() { return state->pos; }
-inline const Protected<float> *Player::getPosition() const {
+inline PcrVal<float> *Player::getPosition() { return state->pos; }
+inline const PcrVal<float> *Player::getPosition() const {
     return state->pos;
 }
 

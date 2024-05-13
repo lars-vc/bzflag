@@ -204,7 +204,7 @@ protected:
     friend class TankRenderNode;
 
 public:
-    Protected<GLfloat>     values[4];
+    PcrVal<GLfloat>     values[4];
 private:
     GLfloat     azimuth, elevation;
     GLfloat     baseRadius;

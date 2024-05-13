@@ -1182,7 +1182,7 @@ void Player::getDeadReckoning(float* predictedPos, float* predictedAzimuth,
             *predictedAzimuth += angle;
             const float cos_val = cosf(angle);
             const float sin_val = sinf(angle);
-            const Protected<float>* tc = inputTurnCenter;
+            const PcrVal<float>* tc = inputTurnCenter;
             const float* tv = inputTurnVector;
             predictedPos[0] = tc[0].val() + ((tv[0] * cos_val) - (tv[1] * sin_val));
             predictedPos[1] = tc[1].val() + ((tv[1] * cos_val) + (tv[0] * sin_val));
